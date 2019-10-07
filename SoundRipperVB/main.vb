@@ -5,18 +5,27 @@
     'Dim newprojectlog As String
     Dim databankcount As Integer
 
+    'Header for str files:
+    'emo_ (stream head followed by size of files in bank)
+    '0x0507b40f - ?
+    '
+
     Function FindDataStart(ByVal sndfileloc As String, ByVal dataWrap As Byte())
+        'This function is to find the start of a data bank
+        'The way munged video and sound files are structured is "header info, empty space, all data"
+        'It stores the positions of all data banks in an array for usage later
+
         Dim w() As Byte = IO.File.ReadAllBytes(sndfileloc) 'read file as array of bytes
         Dim wFound As Boolean = True
-        Dim fsloc As New IO.FileStream(sndfileloc, IO.FileMode.Open)
-        Dim binary_readerloc As New IO.BinaryReader(fsloc)
+        Dim fsloc As New IO.FileStream(sndfileloc, IO.FileMode.Open) 'filestream local variable
+        Dim binary_readerloc As New IO.BinaryReader(fsloc) 'binary
         Dim wrapByte As Byte()
         Dim wrapSize, bankcount As Integer
         Dim strDataWrap As String = dataWrap.ToString()
         Dim wavdatastart As Integer() = New Integer() {}
 
 
-        bankcount = -1
+        bankcount = -1 'initalize
 
         For i As Integer = 0 To w.Length - dataWrap.Length - 1
             If w(i) = dataWrap(0) Then
@@ -35,32 +44,32 @@
                     wrapByte = binary_readerloc.ReadBytes(4)
                     wrapSize = BitConverter.ToUInt32(wrapByte, 0)
 
+                    'Redefine the array, add the next value
                     ReDim Preserve wavdatastart(bankcount)
                     wavdatastart(bankcount) = i + 8
 
+
+                    'Logging
                     addlinetoprojectlog = strDataWrap & " data found at byte: " & i & " Size: " & wrapSize & vbCr
                     addlinetoprojectlog = "Wrap data found at byte: " & i + 8 & " Size: " & wrapSize & vbCr
-                    'newprojectlog = newprojectlog & vbCr & addlinetoprojectlog
                     UpdateProjectLog(addlinetoprojectlog)
 
-
-
-                    'I hope there's only one bank.  Oh wait, there isn't.  Darn it
+                    'I hope there's only one bank.  Oh wait, there isn't.  I had to rewrite this function at one point
 
                 End If
             End If
         Next
 
 
-
+        'File Cleanup
         fsloc.Close()
         binary_readerloc.Close()
 
         databankcount = bankcount
-        Return wavdatastart 'returns exact array byte of wav data 
+        Return wavdatastart 'returns exact array of position of wav data 
     End Function
 
-    Function AddHeader(ByVal HeaderType As String, ByVal Size As UInt32, ByVal SampleRate As UInt32)
+    Function AddHeader(ByVal HeaderType As String, ByVal Size As UInt32, ByVal SampleRate As UInt32, ByVal Channel As UInt16)
         If HeaderType = "wavPCM16" Then 'standard bank
 
             'File header structure is as follows:
@@ -83,14 +92,14 @@
 
 
             'Generate wav header
-            Dim bufsize As UInt32 = Size + 28
-            Dim SampleRatex2 As UInt32 = SampleRate * 2
-            Dim RIFFsize As Byte() = BitConverter.GetBytes(bufsize)
-            Dim ByteSize As Byte() = BitConverter.GetBytes(Size)
+            Dim bufsize As UInt32 = Size + 28 'size of header+file
+            Dim SampleRatex2 As UInt32 = SampleRate * 2 '? theoretical bits/sample
+            Dim RIFFsize As Byte() = BitConverter.GetBytes(bufsize) 'size of file in bytes
+            Dim ByteSize As Byte() = BitConverter.GetBytes(Size) 'size of data in bytes
             Dim ByteSampleRate As Byte() = BitConverter.GetBytes(SampleRate)
             Dim ByteSampleRatex2 As Byte() = BitConverter.GetBytes(SampleRatex2)
 
-            'VB doesn't like byte() to byte, so we're just going to eat up more memory here and make more variables
+            'VB doesn't like byte() to byte, so we're just going to eat up more memory here and make more variables, read up above to know what this means
             Dim wavHeader As Byte() = {82, 73, 70, 70} ', RIFFsize, 87, 65, 86, 69, 102, 109, 116, 16, 0, 0, 0, 1, 0, 1, 0, ByteSampleRate, ByteSampleRatex2, 2, 0, 1, 0, 100, 97, 116, 97, ByteSize}
             Dim wavHeader2 As Byte() = {87, 65, 86, 69, 102, 109, 116, 32, 16, 0, 0, 0, 1, 0, 1, 0}
             Dim wavHeader3 As Byte() = {2, 0, 16, 0, 100, 97, 116, 97}
@@ -98,33 +107,34 @@
             'rawr concatentation - RIP readability
             Dim totalHeader As Byte() = wavHeader.Concat(RIFFsize).Concat(wavHeader2).Concat(ByteSampleRate).Concat(ByteSampleRatex2).Concat(wavHeader3).Concat(ByteSize).ToArray()
 
-
-            'logging, for the love of pete please disable this part before production. we're doing enough logging for testing already
-            'addlinetoprojectlog = totalHeader.ToString()
-            'UpdateProjectLog(addlinetoprojectlog)
-
             Return totalHeader 'return byte array
         ElseIf HeaderType = "wavIPCM" Then 'ima adpcm for stream files
-            'this is super ghetto and maybe should find a separate library
+
             'Generate wav header
             Dim bufsize As UInt32 = Size + 40
             Dim SampleRatediv2 As UInt32 = SampleRate / 2
-            Dim resampleSize As UInt32 = SampleRate * 4 'Currently janking this at *4, but technically it's in the stm header
+            'Dim resampleSize As UInt32 = SampleRate * 4 'Currently janking this at *4, but technically it's somewhere - it's ima adpcm so it's *4, but I removed as not necessary
             Dim RIFFsize As Byte() = BitConverter.GetBytes(bufsize)
             Dim ByteSize As Byte() = BitConverter.GetBytes(Size)
             Dim ByteSampleRate As Byte() = BitConverter.GetBytes(SampleRate)
             Dim ByteSampleRatediv2 As Byte() = BitConverter.GetBytes(SampleRatediv2)
+            Dim wavHeader2, wavheader3 As Byte()
 
-            Dim factSize As Byte() = BitConverter.GetBytes(resampleSize)
+            'Dim factSize As Byte() = BitConverter.GetBytes(resampleSize)
 
             'VB doesn't like byte() to byte, so we're just going to eat up more memory here and make more variables
             Dim wavHeader As Byte() = {82, 73, 70, 70} ', RIFFsize, 87, 65, 86, 69, 102, 109, 116, 16, 0, 0, 0, 1, 0, 1, 0, ByteSampleRate, ByteSampleRatex2, 2, 0, 1, 0, 100, 97, 116, 97, ByteSize}
-            Dim wavHeader2 As Byte() = {87, 65, 86, 69, 102, 109, 116, 32, 20, 0, 0, 0, 17, 0, 1, 0}
-            Dim wavHeader3 As Byte() = {36, 0, 4, 0, 2, 0, 64, 0}
-            Dim wavHeader4 As Byte() = {100, 97, 116, 97}
+            If Channel = 2 Then 'stereo
+                wavHeader2 = {87, 65, 86, 69, 102, 109, 116, 32, 20, 0, 0, 0, 17, 0, 2, 0} 'stereo
+                wavheader3 = {72, 0, 4, 0, 2, 0, 64, 0} 'blocksize to 72
+            Else 'theoretically mono, but we'll be safe for now
+                wavHeader2 = {87, 65, 86, 69, 102, 109, 116, 32, 20, 0, 0, 0, 17, 0, 1, 0}
+                wavheader3 = {36, 0, 4, 0, 2, 0, 64, 0}
+            End If
+            Dim wavHeader4 As Byte() = {100, 97, 116, 97} 'DATA
 
             'rawr concatentation - RIP readability
-            Dim totalHeader As Byte() = wavHeader.Concat(RIFFsize).Concat(wavHeader2).Concat(ByteSampleRate).Concat(ByteSampleRatediv2).Concat(wavHeader3).Concat(wavHeader4).Concat(ByteSize).ToArray()
+            Dim totalHeader As Byte() = wavHeader.Concat(RIFFsize).Concat(wavHeader2).Concat(ByteSampleRate).Concat(ByteSampleRatediv2).Concat(wavheader3).Concat(wavHeader4).Concat(ByteSize).ToArray()
 
             Return totalHeader 'return byte array
         ElseIf HeaderType = "bik" Then
@@ -161,8 +171,9 @@
     End Function
 
     Sub UpdateProjectLog(ByVal projlog As String)
+        'this updates the project log.  new log is generated on run
         Dim file As System.IO.StreamWriter
-        file = My.Computer.FileSystem.OpenTextFileWriter("test.txt", True)
+        file = My.Computer.FileSystem.OpenTextFileWriter("log.txt", True)
         file.Write(projlog)
         file.Close()
     End Sub
@@ -199,19 +210,19 @@
 #Region "Body"
 
 #Region "variables"
-        System.IO.File.WriteAllText("test.txt", "")
-        Dim sndfile As String = "gcw_tac_vo.str"
+        System.IO.File.WriteAllText("log.txt", "")
+        Dim sndfile As String = "shell.lvl" 'lvl to extract sound/fmv
         Dim platform As String = "pc" 'only for videos as of now
         Dim wavtype As String
         Dim filetype As String = sndfile.Substring(sndfile.Length - 4)
 
-        'This code is pretty arbitrary with what it picks for the dissection type
+
+        'This code is pretty arbitrary with what it picks for the dissection type.  It's good enough for now
         If filetype = ".lvl" Or filetype = ".str" Then
             wavtype = "wavIPCM"
         ElseIf filetype = ".mvs" Then
             If platform = "ps2" Then
                 wavtype = "pss"
-                'NOTE: FOR PSS FILES - there is a goofy amount of bytes in between which I had to remove by hand
             Else
                 wavtype = "bik"
             End If
@@ -219,32 +230,29 @@
             wavtype = "wavPCM16"
         End If
 
+
         addlinetoprojectlog = "Parsing " & sndfile & vbCr
-        'newprojectlog = newprojectlog & vbCr & addlinetoprojectlog
         UpdateProjectLog(addlinetoprojectlog)
+
 
         Dim SearchStart As Byte()
         Dim dataWrapper As Byte()
-        'Dim SearchStringStart As String
+
 
         'give us a starting search point
+        'Looks for the "Size" header for each one specifically then goes from there
         If wavtype = "bik" Then
             SearchStart = {66, 73, 75, 105}
-            'SearchStringStart = BitConverter.ToString(SearchStart)
             dataWrapper = {}
         ElseIf wavtype = "pss" Then
             SearchStart = {21, 54, 208, 131}
-            'SearchStringStart = BitConverter.ToString(SearchStart)
-            'SearchStringStart = "PSS"
             dataWrapper = {165, 226, 114, 216}
         Else
             SearchStart = {92, 217, 160, 35}
-            'SearchStringStart = BitConverter.ToString(SearchStart)
             dataWrapper = {165, 226, 114, 216}
         End If
 
-
-        'Console.WriteLine(SearchStringStart)
+        'variable inits
         Dim Startindex = 0
         Dim Endindex = 1
         Dim bFound As Boolean = True
@@ -254,13 +262,14 @@
         Dim encoding As New System.Text.ASCIIEncoding
 
         Dim wavByte(), sampleByte() As Byte
-        Dim wavSize, sampleRate, wavinbankint As Integer
-        Dim header, newWavFile, bytedata, wavinbankbyte As Byte()
+        Dim wavSize, sampleRate, wavinbankint, channel As Integer
+        Dim header, newWavFile, bytedata, wavinbankbyte, channelbyte As Byte()
         Dim wavname As String
         Dim overallcounter = 0
         Dim savePosition(databankcount) As Integer
 
-        'dataPosition for later, not needed for bik
+
+        'dataPosition for later, not needed for bik since they are stored with their header intact
         If wavtype <> "bik" Then
             savePosition = FindDataStart(sndfile, dataWrapper)
         End If
@@ -318,7 +327,7 @@
 #End Region
         Else
 #Region "Sound Code (and pss)"
-            For i As Integer = 0 To b.Length - SearchStart.Length - 1
+            For i As Integer = 0 To b.Length - SearchStart.Length - 1 'if it doesn't find searchstart, keep going
                 If b(i) = SearchStart(0) Then
                     bFound = True
                     For j As Integer = 0 To SearchStart.Length - 1
@@ -327,17 +336,22 @@
                             Exit For
                         End If
                     Next
-                    If bFound Then
+                    If bFound Then 'when it finds search start
                         fileCounter += 1 'start at 1, count up
                         overallcounter += 1
                         If fileCounter = 1 And wavtype <> "pss" Then
-                            'If overallcounter = 0 Then
                             'skip 1, its the loneliest number
                             'Actually, the first number in a bank is the overall size of the bank with the amount of wavs in it
                             fs.Position = i - 4
                             wavinbankbyte = binary_reader.ReadBytes(4) ' there are files with two banks.  darn coding
-                            wavinbankint = BitConverter.ToUInt32(wavinbankbyte, 0)
-                            UpdateProjectLog(wavinbankint & " " & wavtype & " in bank at " & i & vbCr)
+                            wavinbankint = BitConverter.ToUInt32(wavinbankbyte, 0) 'read amount of wavs in bank
+
+                            'read channel
+                            fs.Position = i - 20 'channel pos
+                            channelbyte = binary_reader.ReadBytes(2) 'ushort is good enough
+                            channel = BitConverter.ToUInt16(channelbyte, 0)
+
+                            UpdateProjectLog(wavinbankint & " " & wavtype & " in bank at " & i & " Num channels: " & channel & vbCr)
                         Else
                             'Read samplerate, convert to uint32
                             If wavtype <> "pss" Then
@@ -348,8 +362,8 @@
 
                             'Read size of wave, convert to Uint32
                             fs.Position = i + 4
-                                wavByte = binary_reader.ReadBytes(4)
-                                wavSize = BitConverter.ToUInt32(wavByte, 0)
+                            wavByte = binary_reader.ReadBytes(4)
+                            wavSize = BitConverter.ToUInt32(wavByte, 0)
 
 
                             'Read raw data
@@ -359,45 +373,47 @@
                                 fs.Position += 2044 'buffer for pss files
                             ElseIf wavtype = "wavIPCM" And overallcounter > 1 Then 'not in bnk?  .lvl aligned by block size
                                 Dim blocksize = 2048  'defined in req
-                                'UpdateProjectLog(((savePosition(pos) + wavSize) Mod blocksize) & vbCr)
-                                If ((savePosition(pos) + wavSize) Mod blocksize) <> 0 Then 'some files have 0, which confuses this function.
+                                'UpdateProjectLog(((savePosition(pos) + wavSize) Mod blocksize) & vbCr)  'reactivate if block size seems goofy
+                                If ((savePosition(pos) + wavSize) Mod blocksize) <> 0 Then
+                                    'if a file falls right on a multiple of 2048, we don't run this code.  Think about it 2048 - (2048Mod2048) or 0 = 2048, arbitrarily adding 2048 bytes when not needed.
                                     wavSize += (blocksize - ((savePosition(pos) + wavSize) Mod blocksize))
                                 End If
                             End If
 
 
-                                UpdateProjectLog("Data start at byte " & fs.Position & " for file " & overallcounter & vbCr)
+                            UpdateProjectLog("Data start at byte " & fs.Position & " for file " & overallcounter & vbCr)
 
-                            bytedata = binary_reader.ReadBytes(wavSize) 'PLEASE CHECK FOR ACCURACY
-                            savePosition(pos) = fs.Position
+                            bytedata = binary_reader.ReadBytes(wavSize) 'read wav data
+                            savePosition(pos) = fs.Position 'save position in wav for later
 
                             addlinetoprojectlog = wavtype & " header found at byte: " & i & " Size: " & wavSize & " Sample Rate: " & sampleRate & vbCr
                             UpdateProjectLog(addlinetoprojectlog)
 
-                                'file generator code
-                                'PSS does not need a header
-                                If wavtype = "pss" Then
-                                    newWavFile = bytedata
+                            'file generator code
+                            'TO ADD: file naming code.  SK suggests a bank of some sort.  We can also start storing hashes and work with them
+                            'PSS does not need a header
+                            If wavtype = "pss" Then
+                                newWavFile = bytedata
                                 wavname = sndfile.Substring(0, sndfile.Length - 4) & "\ps2movie" + overallcounter.ToString() + ".pss"
                             Else
-                                header = AddHeader(wavtype, wavSize, sampleRate)
+                                header = AddHeader(wavtype, wavSize, sampleRate, channel)
                                 newWavFile = header.Concat(bytedata).ToArray()
-                                    wavname = sndfile.Substring(0, sndfile.Length - 4) & "\rawwav" + overallcounter.ToString() + ".wav"
-                                End If
+                                wavname = sndfile.Substring(0, sndfile.Length - 4) & "\rawwav" + overallcounter.ToString() + ".wav"
+                            End If
 
-                                'write said file
-                                My.Computer.FileSystem.WriteAllBytes(wavname, newWavFile, False)
+                            'write said file
+                            My.Computer.FileSystem.WriteAllBytes(wavname, newWavFile, False)
 
-                                Startindex = i
+                            Startindex = i
 
-                                If fileCounter - 1 = wavinbankint Then
-                                    fileCounter = 0  'reset file counter for bank
-                                    If databankcount > pos Then
-                                        pos = pos + 1    'for our saveposition bank array
-                                    End If
+                            If fileCounter - 1 = wavinbankint Then
+                                fileCounter = 0  'reset file counter for bank
+                                If databankcount > pos Then
+                                    pos = pos + 1    'for our saveposition bank array
                                 End If
                             End If
                         End If
+                    End If
                 End If
             Next
 
@@ -406,7 +422,6 @@
                 'currently just grabs teh position numbers, want character at that position number
                 Dim ss As String = System.Text.Encoding.GetEncoding(1252).GetString(encoding.GetBytes(i))
                 addlinetoprojectlog = ss & vbCr
-                'newprojectlog = newprojectlog & vbCr & addlinetoprojectlog
                 UpdateProjectLog(addlinetoprojectlog)
             Next
 #End Region
