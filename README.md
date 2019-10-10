@@ -11,8 +11,10 @@ replace filename with your file, e.g. common.bnk
 All sounds are in .wav format.  Sounds in .bnk files are in native PCM16, and all others that I have found are IMA ADPCM format (4:1 compression of .wav).  All movies are in BIK format.
 The program tries its hardest to name them correctly using FilenameHashes.csv which needs to be in the folder with the .exe. (included in the main folder here)
 To play these files, the current option is to use VLC Media Player, which can support these files.
-If you wish to munge these files back into the game, you must convert them back to PCM16 through ffmpeg (here: https://www.ffmpeg.org/download.html).  I'm researching cleanup commands, but for now, use:
+If you wish to munge these files back into the game, you must convert them back to PCM16 through ffmpeg (here: https://www.ffmpeg.org/download.html).  
+I'm researching cleanup commands, but for now, use:
 ffmpeg -i *inputfile* *outputfile*
+
 If you need more options, the format you want to output to is pcm_s16le.  All the other relevant information should be in the header and caught by ffmpeg.
 
 
