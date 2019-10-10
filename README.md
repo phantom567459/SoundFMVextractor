@@ -5,7 +5,9 @@ Put your sound file in the same folder as the .exe and run from the command line
 This also works on FMVs for PC.  All FMVs are located in Gamedata\Data\_LVL_PC\Movies.
 
 Format for usage:
+
 SoundRipperVB.exe -i *filename*
+
 replace filename with your file, e.g. common.bnk
 
 All sounds are in .wav format.  Sounds in .bnk files are in native PCM16, and all others that I have found are IMA ADPCM format (4:1 compression of .wav).  All movies are in BIK format.
