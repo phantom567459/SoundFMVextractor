@@ -10,6 +10,35 @@
     '0x0507b40f - ?
     '
 
+    Function GetHashedName(ByVal input() As Byte)
+        Dim sText, filereader As String
+        Dim delimiter As String = vbCrLf 'csv
+        Dim unhashedName As String
+
+        sText = Hex(BitConverter.ToUInt32(input, 0)) 'read in hash in hex format for searching
+        Dim sTextLength As Integer = sText.Length()
+
+        filereader = My.Computer.FileSystem.ReadAllText("FilenameHashes.csv") 'read in hash to string var
+        Dim index As Integer = filereader.IndexOf(sText) 'index of hash
+        Dim indexsave As Integer = index
+        If sTextLength = 7 Then 'hex doesn't take a leading 0
+            index += 8
+        Else
+            index += 9 'we got the hash already
+        End If
+
+        Dim delimIndex As Integer = filereader.IndexOf(delimiter, index)
+        Dim substrLength As Integer = delimIndex - index
+
+        If indexsave >= 0 Then
+            unhashedName = filereader.Substring(index, substrLength) 'with this we are automatically assuming all hashes are 8 char in csv, run substr command to next comma
+        Else
+            unhashedName = sText
+        End If
+        UpdateProjectLog("HASH " & unhashedName & vbCr) 'check name, if not found, then just use hash
+        Return unhashedName
+    End Function
+
     Function FindDataStart(ByVal sndfileloc As String, ByVal dataWrap As Byte())
         'This function is to find the start of a data bank
         'The way munged video and sound files are structured is "header info, empty space, all data"
@@ -187,20 +216,32 @@
         ' 2      First value in command in your example text1
         ' 3      Second switch in command in your example -s
         ' 4      Second value in command in your example text2
-        'Dim clArgs() As String = Environment.GetCommandLineArgs()
+        Dim clArgs() As String = Environment.GetCommandLineArgs()
+        Dim sndfile As String ' = "shell.lvl" 'lvl to extract sound/fmv
+        Dim platform As String = "pc" 'only for videos as of now
         ' Hold the command line values
         ' Dim type As String = String.Empty
         ' Test to see if two switchs and two values were passed in
         ' if yes parse the array
-        'If clArgs.Count() = 2 Then
-        'For i As Integer = 1 To 1 'only check 1 for now
-        'If clArgs(i) = "-t" Then
-        'Type = clArgs(i + 1)
-        ' Else
-        '            type = "wav" 'default as wav for now
-        '  End If
-        '  Next
-        ' End If
+        'RIP THIS IMPLEMENTATION
+        'This is really, really bad.  Please use this right or bring dishonor on your family.
+        If clArgs.Count() > 2 Then
+            If clArgs(1) = "-i" Then
+                sndfile = clArgs(2)
+                If sndfile = Nothing Then
+                    Console.WriteLine("You didn't enter a file")
+                    Exit Sub
+                End If
+            Else
+                Console.WriteLine("Please enter the correct argument")
+                Exit Sub 'default as wav for now
+            End If
+        Else
+            Console.WriteLine("Options are -i *filename* currently")
+            Exit Sub
+        End If
+        'Next
+        'End If
 
         ' Console.WriteLine(type)
         ' Console.ReadLine()
@@ -211,10 +252,12 @@
 
 #Region "variables"
         System.IO.File.WriteAllText("log.txt", "")
-        Dim sndfile As String = "shell.lvl" 'lvl to extract sound/fmv
-        Dim platform As String = "pc" 'only for videos as of now
+        addlinetoprojectlog = "Parsing " & sndfile & vbCr
+        UpdateProjectLog(addlinetoprojectlog)
+
         Dim wavtype As String
         Dim filetype As String = sndfile.Substring(sndfile.Length - 4)
+        Dim filereader As String = My.Computer.FileSystem.ReadAllText("FilenameHashes.csv")
 
 
         'This code is pretty arbitrary with what it picks for the dissection type.  It's good enough for now
@@ -231,8 +274,7 @@
         End If
 
 
-        addlinetoprojectlog = "Parsing " & sndfile & vbCr
-        UpdateProjectLog(addlinetoprojectlog)
+
 
 
         Dim SearchStart As Byte()
@@ -261,10 +303,10 @@
         Dim pos As Integer = 0
         Dim encoding As New System.Text.ASCIIEncoding
 
-        Dim wavByte(), sampleByte() As Byte
+        Dim wavByte(), sampleByte(), hashbyte() As Byte
         Dim wavSize, sampleRate, wavinbankint, channel As Integer
         Dim header, newWavFile, bytedata, wavinbankbyte, channelbyte As Byte()
-        Dim wavname As String
+        Dim wavname, extractedname As String
         Dim overallcounter = 0
         Dim savePosition(databankcount) As Integer
 
@@ -365,6 +407,10 @@
                             wavByte = binary_reader.ReadBytes(4)
                             wavSize = BitConverter.ToUInt32(wavByte, 0)
 
+                            'ghetto byte storage for reverse hash
+                            fs.Position = i - 12
+                            hashbyte = binary_reader.ReadBytes(4)
+                            extractedName = GetHashedName(hashbyte)
 
                             'Read raw data
                             fs.Position = savePosition(pos)
@@ -384,36 +430,37 @@
                             UpdateProjectLog("Data start at byte " & fs.Position & " for file " & overallcounter & vbCr)
 
                             bytedata = binary_reader.ReadBytes(wavSize) 'read wav data
+                            'If bytedata IsNot BitConverter.GetBytes(0) Then
                             savePosition(pos) = fs.Position 'save position in wav for later
 
-                            addlinetoprojectlog = wavtype & " header found at byte: " & i & " Size: " & wavSize & " Sample Rate: " & sampleRate & vbCr
-                            UpdateProjectLog(addlinetoprojectlog)
+                                addlinetoprojectlog = wavtype & " header found at byte: " & i & " Size: " & wavSize & " Sample Rate: " & sampleRate & vbCr
+                                UpdateProjectLog(addlinetoprojectlog)
 
-                            'file generator code
-                            'TO ADD: file naming code.  SK suggests a bank of some sort.  We can also start storing hashes and work with them
-                            'PSS does not need a header
-                            If wavtype = "pss" Then
-                                newWavFile = bytedata
-                                wavname = sndfile.Substring(0, sndfile.Length - 4) & "\ps2movie" + overallcounter.ToString() + ".pss"
-                            Else
-                                header = AddHeader(wavtype, wavSize, sampleRate, channel)
-                                newWavFile = header.Concat(bytedata).ToArray()
-                                wavname = sndfile.Substring(0, sndfile.Length - 4) & "\rawwav" + overallcounter.ToString() + ".wav"
-                            End If
+                                'file generator code
+                                'TO ADD: file naming code.  SK suggests a bank of some sort.  We can also start storing hashes and work with them
+                                'PSS does not need a header
+                                If wavtype = "pss" Then
+                                    newWavFile = bytedata
+                                    wavname = sndfile.Substring(0, sndfile.Length - 4) & "\ps2movie" + overallcounter.ToString() + ".pss"
+                                Else
+                                    header = AddHeader(wavtype, wavSize, sampleRate, channel)
+                                    newWavFile = header.Concat(bytedata).ToArray()
+                                    wavname = sndfile.Substring(0, sndfile.Length - 4) & "\" + extractedname + ".wav"
+                                End If
 
-                            'write said file
-                            My.Computer.FileSystem.WriteAllBytes(wavname, newWavFile, False)
-
+                                'write said file
+                                My.Computer.FileSystem.WriteAllBytes(wavname, newWavFile, False)
+                            'End If
                             Startindex = i
 
-                            If fileCounter - 1 = wavinbankint Then
-                                fileCounter = 0  'reset file counter for bank
-                                If databankcount > pos Then
-                                    pos = pos + 1    'for our saveposition bank array
+                                If fileCounter - 1 = wavinbankint Then
+                                    fileCounter = 0  'reset file counter for bank
+                                    If databankcount > pos Then
+                                        pos = pos + 1    'for our saveposition bank array
+                                    End If
                                 End If
                             End If
                         End If
-                    End If
                 End If
             Next
 
