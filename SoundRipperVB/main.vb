@@ -98,7 +98,7 @@
         Return wavdatastart 'returns exact array of position of wav data 
     End Function
 
-    Function AddHeader(ByVal HeaderType As String, ByVal Size As UInt32, ByVal SampleRate As UInt32, ByVal Channel As UInt16)
+    Function AddHeader(ByVal HeaderType As String, ByVal Size As UInt32, ByVal SampleRate As UInt32, ByVal Channel As UInt16, ByVal Name As String)
         If HeaderType = "wavPCM16" Then 'standard bank
 
             'File header structure is as follows:
@@ -193,6 +193,24 @@
 
             'Generate bik header
             Return 0
+        ElseIf HeaderType = "vag" Then
+            'Generate wav header
+            Dim wavHeader2, wavheader3 As Byte()
+
+            'Dim factSize As Byte() = BitConverter.GetBytes(resampleSize)
+
+            'VB doesn't like byte() to byte, so we're just going to eat up more memory here and make more variables
+            Dim wavHeader As Byte() = {86, 65, 71, 112, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 24, 144, 0, 0, 86, 34, 255, 255, 255, 255, 0, 16, 0, 0, 0, 0, 0, 0} ', VAG, then file name
+            wavHeader2 = {65, 73, 67, 79, 77, 50, 48, 52}
+            wavheader3 = {46, 118, 97, 103, 0, 0, 0, 0}
+
+            Dim filename As String = Name
+
+            'rawr concatentation - RIP readability
+            'Dim totalHeader As Byte() = wavHeader.Concat(Name).Concat(wavHeader2)
+            Dim totalHeader As Byte() = wavHeader.Concat(wavHeader2).Concat(wavheader3).ToArray()
+
+            Return totalHeader 'return byte array
         Else
             Return 0
             Exit Function
@@ -218,7 +236,7 @@
         ' 4      Second value in command in your example text2
         Dim clArgs() As String = Environment.GetCommandLineArgs()
         Dim sndfile As String ' = "shell.lvl" 'lvl to extract sound/fmv
-        Dim platform As String = "pc" 'only for videos as of now
+        Dim platform As String 'only for videos as of now
         ' Hold the command line values
         ' Dim type As String = String.Empty
         ' Test to see if two switchs and two values were passed in
@@ -234,10 +252,23 @@
                 End If
             Else
                 Console.WriteLine("Please enter the correct argument")
-                Exit Sub 'default as wav for now
+                Exit Sub
+            End If
+
+            If clArgs.Count > 4 Then
+                If clArgs(3) = "-p" Then
+                    platform = clArgs(4)
+                    If platform <> "pc" And platform <> "ps2" And platform <> "xbox" Then
+                        Console.WriteLine("Please select a valid platform: pc, ps2, xbox")
+                        Exit Sub
+                    End If
+                Else
+                    Console.WriteLine("Please enter the correct argument")
+                    Exit Sub
+                End If
             End If
         Else
-            Console.WriteLine("Options are -i *filename* currently")
+            Console.WriteLine("Options are -i *filename* -p *pc/ps2/xbox* currently")
             Exit Sub
         End If
         'Next
@@ -252,7 +283,7 @@
 
 #Region "variables"
         System.IO.File.WriteAllText("log.txt", "")
-        addlinetoprojectlog = "Parsing " & sndfile & vbCr
+        addlinetoprojectlog = "Parsing " & sndfile & "for " & platform & vbCr
         UpdateProjectLog(addlinetoprojectlog)
 
         Dim wavtype As String
@@ -262,7 +293,11 @@
 
         'This code is pretty arbitrary with what it picks for the dissection type.  It's good enough for now
         If filetype = ".lvl" Or filetype = ".str" Then
-            wavtype = "wavIPCM"
+            If platform = "ps2" Then
+                wavtype = "vag"
+            Else
+                wavtype = "wavIPCM"
+            End If
         ElseIf filetype = ".mvs" Then
             If platform = "ps2" Then
                 wavtype = "pss"
@@ -443,10 +478,14 @@
                                     newWavFile = bytedata
                                     wavname = sndfile.Substring(0, sndfile.Length - 4) & "\ps2movie" + overallcounter.ToString() + ".pss"
                                 Else
-                                    header = AddHeader(wavtype, wavSize, sampleRate, channel)
-                                    newWavFile = header.Concat(bytedata).ToArray()
+                                header = AddHeader(wavtype, wavSize, sampleRate, channel, extractedname)
+                                newWavFile = header.Concat(bytedata).ToArray()
+                                If wavtype = "vag" Then
+                                    wavname = sndfile.Substring(0, sndfile.Length - 4) & "\" + extractedname + ".vag"
+                                Else
                                     wavname = sndfile.Substring(0, sndfile.Length - 4) & "\" + extractedname + ".wav"
                                 End If
+                            End If
 
                                 'write said file
                                 My.Computer.FileSystem.WriteAllBytes(wavname, newWavFile, False)
