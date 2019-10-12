@@ -10,34 +10,22 @@
     '0x0507b40f - ?
     '
 
-    Function GetHashedName(ByVal input() As Byte)
-        Dim sText, filereader As String
-        Dim delimiter As String = vbCrLf 'csv
-        Dim unhashedName As String
+    Function GetHashNameLookupDictionary()
+        Dim dictionary As New Dictionary(Of UInt32, String)
 
-        sText = Hex(BitConverter.ToUInt32(input, 0)) 'read in hash in hex format for searching
-        Dim sTextLength As Integer = sText.Length()
+        For Each sLine As String In IO.File.ReadLines("FilenameHashes.csv")
+            Dim hashString() As String = sLine.Split(",")
+            Dim trimmedHash As String = hashString(0).Substring(2)
+            Dim hash = Convert.ToUInt32(trimmedHash, 16)
 
-        filereader = My.Computer.FileSystem.ReadAllText("FilenameHashes.csv") 'read in hash to string var
-        Dim index As Integer = filereader.IndexOf(sText) 'index of hash
-        Dim indexsave As Integer = index
-        If sTextLength = 7 Then 'hex doesn't take a leading 0
-            index += 8
-        Else
-            index += 9 'we got the hash already
-        End If
+            If (dictionary.ContainsKey(hash)) Then Continue For
 
-        Dim delimIndex As Integer = filereader.IndexOf(delimiter, index)
-        Dim substrLength As Integer = delimIndex - index
+            dictionary.Add(Convert.ToUInt32(trimmedHash, 16), hashString(1))
+        Next
 
-        If indexsave >= 0 Then
-            unhashedName = filereader.Substring(index, substrLength) 'with this we are automatically assuming all hashes are 8 char in csv, run substr command to next comma
-        Else
-            unhashedName = sText
-        End If
-        UpdateProjectLog("HASH " & unhashedName & vbCr) 'check name, if not found, then just use hash
-        Return unhashedName
+        Return dictionary
     End Function
+
 
     Function FindDataStart(ByVal sndfileloc As String, ByVal dataWrap As Byte())
         'This function is to find the start of a data bank
@@ -280,15 +268,14 @@
 
 
 #Region "Body"
-
 #Region "variables"
         System.IO.File.WriteAllText("log.txt", "")
         addlinetoprojectlog = "Parsing " & sndfile & "for " & platform & vbCr
         UpdateProjectLog(addlinetoprojectlog)
 
+        Dim hashNamesDictionary As Dictionary(Of UInt32, String) = GetHashNameLookupDictionary()
         Dim wavtype As String
         Dim filetype As String = sndfile.Substring(sndfile.Length - 4)
-        Dim filereader As String = My.Computer.FileSystem.ReadAllText("FilenameHashes.csv")
 
 
         'This code is pretty arbitrary with what it picks for the dissection type.  It's good enough for now
@@ -338,10 +325,11 @@
         Dim pos As Integer = 0
         Dim encoding As New System.Text.ASCIIEncoding
 
-        Dim wavByte(), sampleByte(), hashbyte() As Byte
+        Dim wavByte(), sampleByte() As Byte
+        Dim nameHash As UInt32
         Dim wavSize, sampleRate, wavinbankint, channel As Integer
         Dim header, newWavFile, bytedata, wavinbankbyte, channelbyte As Byte()
-        Dim wavname, extractedname As String
+        Dim wavname, extractedname As New String("")
         Dim overallcounter = 0
         Dim savePosition(databankcount) As Integer
 
@@ -444,8 +432,12 @@
 
                             'ghetto byte storage for reverse hash
                             fs.Position = i - 12
-                            hashbyte = binary_reader.ReadBytes(4)
-                            extractedName = GetHashedName(hashbyte)
+                            nameHash = binary_reader.ReadUInt32()
+
+                            If Not hashNamesDictionary.TryGetValue(nameHash, extractedname) Then
+                                extractedname = Hex(nameHash)
+                            End If
+
 
                             'Read raw data
                             fs.Position = savePosition(pos)
@@ -468,16 +460,16 @@
                             'If bytedata IsNot BitConverter.GetBytes(0) Then
                             savePosition(pos) = fs.Position 'save position in wav for later
 
-                                addlinetoprojectlog = wavtype & " header found at byte: " & i & " Size: " & wavSize & " Sample Rate: " & sampleRate & vbCr
-                                UpdateProjectLog(addlinetoprojectlog)
+                            addlinetoprojectlog = wavtype & " header found at byte: " & i & " Size: " & wavSize & " Sample Rate: " & sampleRate & vbCr
+                            UpdateProjectLog(addlinetoprojectlog)
 
-                                'file generator code
-                                'TO ADD: file naming code.  SK suggests a bank of some sort.  We can also start storing hashes and work with them
-                                'PSS does not need a header
-                                If wavtype = "pss" Then
-                                    newWavFile = bytedata
-                                    wavname = sndfile.Substring(0, sndfile.Length - 4) & "\ps2movie" + overallcounter.ToString() + ".pss"
-                                Else
+                            'file generator code
+                            'TO ADD: file naming code.  SK suggests a bank of some sort.  We can also start storing hashes and work with them
+                            'PSS does not need a header
+                            If wavtype = "pss" Then
+                                newWavFile = bytedata
+                                wavname = sndfile.Substring(0, sndfile.Length - 4) & "\ps2movie" + overallcounter.ToString() + ".pss"
+                            Else
                                 header = AddHeader(wavtype, wavSize, sampleRate, channel, extractedname)
                                 newWavFile = header.Concat(bytedata).ToArray()
                                 If wavtype = "vag" Then
@@ -487,19 +479,19 @@
                                 End If
                             End If
 
-                                'write said file
-                                My.Computer.FileSystem.WriteAllBytes(wavname, newWavFile, False)
+                            'write said file
+                            My.Computer.FileSystem.WriteAllBytes(wavname, newWavFile, False)
                             'End If
                             Startindex = i
 
-                                If fileCounter - 1 = wavinbankint Then
-                                    fileCounter = 0  'reset file counter for bank
-                                    If databankcount > pos Then
-                                        pos = pos + 1    'for our saveposition bank array
-                                    End If
+                            If fileCounter - 1 = wavinbankint Then
+                                fileCounter = 0  'reset file counter for bank
+                                If databankcount > pos Then
+                                    pos = pos + 1    'for our saveposition bank array
                                 End If
                             End If
                         End If
+                    End If
                 End If
             Next
 
