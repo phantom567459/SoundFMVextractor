@@ -2,7 +2,6 @@
 
     'globals
     Dim addlinetoprojectlog As String
-    'Dim newprojectlog As String
     Dim databankcount As Integer
 
     'Header for str files:
@@ -125,7 +124,7 @@
             Dim totalHeader As Byte() = wavHeader.Concat(RIFFsize).Concat(wavHeader2).Concat(ByteSampleRate).Concat(ByteSampleRatex2).Concat(wavHeader3).Concat(ByteSize).ToArray()
 
             Return totalHeader 'return byte array
-        ElseIf HeaderType = "wavIPCM" Then 'ima adpcm for stream files
+        ElseIf HeaderType = "wavIPCM" Or HeaderType = "wavxPCM" Then 'ima adpcm for stream files, xbox adpcm is REALLY close to this
 
             'Generate wav header
             Dim bufsize As UInt32 = Size + 40
@@ -142,10 +141,18 @@
             'VB doesn't like byte() to byte, so we're just going to eat up more memory here and make more variables
             Dim wavHeader As Byte() = {82, 73, 70, 70} ', RIFFsize, 87, 65, 86, 69, 102, 109, 116, 16, 0, 0, 0, 1, 0, 1, 0, ByteSampleRate, ByteSampleRatex2, 2, 0, 1, 0, 100, 97, 116, 97, ByteSize}
             If Channel = 2 Then 'stereo
-                wavHeader2 = {87, 65, 86, 69, 102, 109, 116, 32, 20, 0, 0, 0, 17, 0, 2, 0} 'stereo
+                If HeaderType = "wavxPCM" Then
+                    wavHeader2 = {87, 65, 86, 69, 102, 109, 116, 32, 20, 0, 0, 0, 105, 0, 2, 0}
+                Else
+                    wavHeader2 = {87, 65, 86, 69, 102, 109, 116, 32, 20, 0, 0, 0, 17, 0, 2, 0} 'stereo
+                End If
                 wavheader3 = {72, 0, 4, 0, 2, 0, 64, 0} 'blocksize to 72
             Else 'theoretically mono, but we'll be safe for now
-                wavHeader2 = {87, 65, 86, 69, 102, 109, 116, 32, 20, 0, 0, 0, 17, 0, 1, 0}
+                If HeaderType = "wavxPCM" Then
+                    wavHeader2 = {87, 65, 86, 69, 102, 109, 116, 32, 20, 0, 0, 0, 105, 0, 1, 0}
+                Else
+                    wavHeader2 = {87, 65, 86, 69, 102, 109, 116, 32, 20, 0, 0, 0, 17, 0, 1, 0}
+                End If
                 wavheader3 = {36, 0, 4, 0, 2, 0, 64, 0}
             End If
             Dim wavHeader4 As Byte() = {100, 97, 116, 97} 'DATA
@@ -273,15 +280,18 @@
         addlinetoprojectlog = "Parsing " & sndfile & "for " & platform & vbCr
         UpdateProjectLog(addlinetoprojectlog)
 
+        'Credit Sleepkiller for Dictionary
         Dim hashNamesDictionary As Dictionary(Of UInt32, String) = GetHashNameLookupDictionary()
         Dim wavtype As String
         Dim filetype As String = sndfile.Substring(sndfile.Length - 4)
 
 
         'This code is pretty arbitrary with what it picks for the dissection type.  It's good enough for now
-        If filetype = ".lvl" Or filetype = ".str" Then
+        If filetype = ".lvl" Or filetype = ".str" Or filetype = ".LVL" Then
             If platform = "ps2" Then
                 wavtype = "vag"
+            ElseIf platform = "xbox" Then
+                wavtype = "wavxPCM"
             Else
                 wavtype = "wavIPCM"
             End If
@@ -413,7 +423,7 @@
 
                             'read channel
                             fs.Position = i - 20 'channel pos
-                            channelbyte = binary_reader.ReadBytes(2) 'ushort is good enough
+                            channelbyte = binary_reader.ReadBytes(2) 'ushort
                             channel = BitConverter.ToUInt16(channelbyte, 0)
 
                             UpdateProjectLog(wavinbankint & " " & wavtype & " in bank at " & i & " Num channels: " & channel & vbCr)
@@ -438,39 +448,43 @@
                                 extractedname = Hex(nameHash)
                             End If
 
+                            UpdateProjectLog("Name: " & extractedname & vbCr)
+
 
                             'Read raw data
                             fs.Position = savePosition(pos)
 
                             If wavtype = "pss" And overallcounter > 1 Then
                                 fs.Position += 2044 'buffer for pss files
-                            ElseIf wavtype = "wavIPCM" And overallcounter > 1 Then 'not in bnk?  .lvl aligned by block size
+                            ElseIf (wavtype = "wavIPCM" Or (wavtype = "wavxPCM" And channel <= 2)) And overallcounter > 1 Then 'not in bnk?  .lvl aligned by block size
+                                'This mess above accounts for PC compressed streams AND xbox compressed streams (and discounts the ones that aren't streams because of channel)
                                 Dim blocksize = 2048  'defined in req
                                 'UpdateProjectLog(((savePosition(pos) + wavSize) Mod blocksize) & vbCr)  'reactivate if block size seems goofy
                                 If ((savePosition(pos) + wavSize) Mod blocksize) <> 0 Then
                                     'if a file falls right on a multiple of 2048, we don't run this code.  Think about it 2048 - (2048Mod2048) or 0 = 2048, arbitrarily adding 2048 bytes when not needed.
                                     wavSize += (blocksize - ((savePosition(pos) + wavSize) Mod blocksize))
                                 End If
+                            ElseIf wavtype = "vag" And overallcounter > 1 And channel <= 2 Then 'channel > 2 = not a stream
+                                Dim blocksize = 16384 'defined 49152
+                                wavSize += (blocksize - ((wavSize) Mod blocksize)) 'PS2 vag is NOT relative to the overall file like PC
                             End If
-
 
                             UpdateProjectLog("Data start at byte " & fs.Position & " for file " & overallcounter & vbCr)
 
                             bytedata = binary_reader.ReadBytes(wavSize) 'read wav data
-                            'If bytedata IsNot BitConverter.GetBytes(0) Then
                             savePosition(pos) = fs.Position 'save position in wav for later
 
                             addlinetoprojectlog = wavtype & " header found at byte: " & i & " Size: " & wavSize & " Sample Rate: " & sampleRate & vbCr
                             UpdateProjectLog(addlinetoprojectlog)
 
+
                             'file generator code
-                            'TO ADD: file naming code.  SK suggests a bank of some sort.  We can also start storing hashes and work with them
                             'PSS does not need a header
                             If wavtype = "pss" Then
                                 newWavFile = bytedata
                                 wavname = sndfile.Substring(0, sndfile.Length - 4) & "\ps2movie" + overallcounter.ToString() + ".pss"
                             Else
-                                header = AddHeader(wavtype, wavSize, sampleRate, channel, extractedname)
+                                header = AddHeader(wavtype, wavSize, sampleRate, channel, extractedname) 'I pass extracted name through but may ignore it because it doesn't matter for vag...
                                 newWavFile = header.Concat(bytedata).ToArray()
                                 If wavtype = "vag" Then
                                     wavname = sndfile.Substring(0, sndfile.Length - 4) & "\" + extractedname + ".vag"
