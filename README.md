@@ -15,7 +15,9 @@ All movies on PC are in BIK format, PS2 is PSS, and Xbox is XMV.
 The program tries its hardest to name them correctly using FilenameHashes.csv which needs to be in the folder with the .exe. (included in the main folder here)
 To play these files, the current option is to use VLC Media Player, which can support all of these files, except PS2 VAG format.
 If you wish to munge these files back into the game, you must convert them back to PCM16 through ffmpeg (here: https://www.ffmpeg.org/download.html).  I'm researching cleanup commands, but for now, use:
+
 ffmpeg -i *inputfile* *outputfile*
+
 If you need more options, the format you want to output to is pcm_s16le.  All the other relevant information should be in the header and caught by ffmpeg.
 For larger jobs, FFMpeg Batch is absolutely amazing, and includes a GUI.
 
