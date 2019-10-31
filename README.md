@@ -14,12 +14,11 @@ All movies on PC are in BIK format, PS2 is PSS, and Xbox is XMV.
 
 The program tries its hardest to name them correctly using FilenameHashes.csv which needs to be in the folder with the .exe. (included in the main folder here)
 To play these files, the current option is to use VLC Media Player, which can support all of these files, except PS2 VAG format.
-<<<<<<< HEAD
+
 If you wish to munge these files back into the game, you must convert them (except for common.bnk) back to PCM16 through ffmpeg (here: https://www.ffmpeg.org/download.html).  I'm researching cleanup commands, but for now, use:
-=======
+
 If you wish to munge these files back into the game, you must convert them back to PCM16 through ffmpeg (here: https://www.ffmpeg.org/download.html).  I'm researching cleanup commands, but for now, use:
 
->>>>>>> 33515d972fbb05c93fd751a9c89c090c632fdf8a
 ffmpeg -i *inputfile* *outputfile*
 
 If you need more options, the format you want to output to is pcm_s16le.  All the other relevant information should be in the header and caught by ffmpeg.
@@ -40,7 +39,6 @@ Issues:
 1.) BF2 support 
 2.) Better support for planet sound lvls on console (and somewhat on PC)
 3.) PS2 dual channel music (may not fix)
-<<<<<<< HEAD
 4.) Better xmv support
 
 Credits:
@@ -51,6 +49,3 @@ SWBFgamers.com - for their amazing community and contributions toward SWBF1
 My family - for putting up with me all the time and supporting me
 
 This is not an extensive list, but I couldn't have done this without any of the contributors above.
-=======
-4.) Need Xbox xmv support, just haven't done it yet.
->>>>>>> 33515d972fbb05c93fd751a9c89c090c632fdf8a
