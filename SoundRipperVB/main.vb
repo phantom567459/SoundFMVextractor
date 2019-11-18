@@ -9,10 +9,16 @@
     '0x0507b40f - ?
     '
 
-    Function GetHashNameLookupDictionary()
+    Function GetHashNameLookupDictionary(ByVal version As String)
         Dim dictionary As New Dictionary(Of UInt32, String)
+        Dim hashFileName As String
+        If version = "bf2" Then
+            hashFileName = "FilenameHashesBF2.csv"
+        Else
+            hashFileName = "FilenameHashesBF1.csv"
+        End If
 
-        For Each sLine As String In IO.File.ReadLines("FilenameHashes.csv")
+        For Each sLine As String In IO.File.ReadLines(hashFileName)
             Dim hashString() As String = sLine.Split(",")
             Dim trimmedHash As String = hashString(0).Substring(2)
             Dim hash = Convert.ToUInt32(trimmedHash, 16)
@@ -237,8 +243,6 @@
         ' Dim type As String = String.Empty
         ' Test to see if two switchs and two values were passed in
         ' if yes parse the array
-        'RIP THIS IMPLEMENTATION
-        'This is really, really bad.  Please use this right or bring dishonor on your family.
         If clArgs.Count() > 2 Then
             If clArgs(1) = "-i" Then
                 sndfile = clArgs(2).ToLower()
@@ -310,11 +314,11 @@ Please read the included readme for various file extraction types")
 #Region "Body"
 #Region "variables"
         System.IO.File.WriteAllText("log.txt", "")
-        addlinetoprojectlog = "Parsing " & sndfile & "for " & platform & vbCr
+        addlinetoprojectlog = "Parsing " & sndfile & " for " & platform & vbCr
         UpdateProjectLog(addlinetoprojectlog)
 
         'Credit Sleepkiller for Dictionary
-        Dim hashNamesDictionary As Dictionary(Of UInt32, String) = GetHashNameLookupDictionary()
+        Dim hashNamesDictionary As Dictionary(Of UInt32, String) = GetHashNameLookupDictionary(version)
         Dim wavtype As String
         Dim filetype As String = sndfile.Substring(sndfile.Length - 4).ToLower()
 
@@ -488,7 +492,7 @@ Please read the included readme for various file extraction types")
                             End If
 
                             'Please fix me. I don't need another nested if...
-                            If NoName = 1 And (version = "bf1") And (sndfile = "common.bnk") And (overallcounter > 1394) Then 'do everything possible to avoid this code...
+                            If NoName = 1 And (version = "bf1") And (sndfile = "common.bnk") And (overallcounter > 1394) And (overallcounter < 1410) Then 'do everything possible to avoid this code...
                                 UpdateProjectLog("Bug in BF1 Common.bnk" & vbCr)
                                 'There's a set of 6 files in BF1 common.bnk that mess up this code - this is rudimentary but gets the job done
                                 'My theory is that they are duped or references but they match no known file in the sound docs.
@@ -566,7 +570,7 @@ Please read the included readme for various file extraction types")
 
             Dim newlength = Endindex - Startindex
             For i = Startindex To Endindex
-                'currently just grabs teh position numbers, want character at that position number
+                'currently just grabs the position numbers, want character at that position number
                 Dim ss As String = System.Text.Encoding.GetEncoding(1252).GetString(encoding.GetBytes(i))
                 addlinetoprojectlog = ss & vbCr
                 UpdateProjectLog(addlinetoprojectlog)
