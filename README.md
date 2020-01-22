@@ -1,10 +1,13 @@
 # SoundRipperVB
+# SoundRipperVB
 For extracting sounds and FMV from Pandemic's SWBF and The Clone Wars games
 
 Put your sound file in the same folder as the .exe and run from the command line.  Sound files are in .lvl or .bnk format, and are located in Gamedata\Data\_LVL_platform\Sound\. For TCW PS2, file names are .msh/msb.  Both are accepted, the program figures out what it needs.
+
 This also works on FMVs for PC/PS2.  All FMVs are located in Gamedata\Data\_LVL_platform\Movies.
 
 Format for usage:
+
 SoundRipperVB.exe -i *filename* -p *pc/ps2/xbox* -v *bf1/bf2/tcw*
 
 replace filename with your file, e.g. common.bnk
@@ -13,10 +16,14 @@ All PC sounds are in .wav format.  Sounds in .bnk files are in native PCM16, and
 All movies on PC are in BIK format, PS2 is PSS, and Xbox is XMV.
 
 The program tries its hardest to name them correctly using FilenameHashesBF1/2.csv which needs to be in the folder with the .exe. (included in the main folder here)
+
 To play these files, the current option is to use VLC Media Player, which can support all of these files, except PS2 VAG format.
 If you wish to munge these files back into the game, you must convert them (except for common.bnk) back to PCM16 through ffmpeg (here: https://www.ffmpeg.org/download.html).  For now, use:
+
 ffmpeg -i *inputfile* *outputfile*
+
 If you need more options, the format you want to output to is pcm_s16le.  All the other relevant information should be in the header and caught by ffmpeg.
+
 For larger jobs, FFMpeg Batch is absolutely amazing, and includes a GUI.
 
 Default is pc/bf1.  Future goals are to include complete support for PS2 and Xbox files, but this is not a priority.
@@ -39,9 +46,13 @@ Issues:
 
 Credits:
 Dark_Phantom - creator
+
 psych0fred - help with file formats and file comparisons and FilenameHashes.csv and overall knowledge of the BF sound engine
+
 Sleepkiller - programming help, file formats, code contributions
+
 SWBFgamers.com - for their amazing community and contributions toward SWBF1
+
 My family - for putting up with me all the time and supporting me
 
 This is not an extensive list, but I couldn't have done this without any of the contributors above.
