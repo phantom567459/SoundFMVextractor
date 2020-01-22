@@ -194,7 +194,7 @@
 
             'Generate bik header
             Return 0
-        ElseIf HeaderType = "vag" Then
+        ElseIf HeaderType = "vag" Or HeaderType = "tcwvag" Then
             'Generate wav header
             Dim wavHeader2, wavheader3 As Byte()
 
@@ -268,8 +268,8 @@
                     End If
                 ElseIf clArgs(3) = "-v" Then
                     version = clArgs(4).ToLower()
-                    If version <> "bf1" And version <> "bf2" Then
-                        Console.WriteLine("Please select a valid game: bf1, bf2")
+                    If version <> "bf1" And version <> "bf2" And version <> "tcw" Then
+                        Console.WriteLine("Please select a valid game: bf1, bf2, tcw")
                         Exit Sub
                     End If
                 Else
@@ -281,8 +281,8 @@
             If clArgs.Count > 6 Then
                 If clArgs(5) = "-v" Then
                     version = clArgs(6).ToLower()
-                    If version <> "bf1" And version <> "bf2" Then
-                        Console.WriteLine("Please select a valid game: bf1, bf2")
+                    If version <> "bf1" And version <> "bf2" And version <> "tcw" Then
+                        Console.WriteLine("Please select a valid game: bf1, bf2, tcw")
                         Exit Sub
                     End If
                 Else
@@ -292,8 +292,8 @@
             End If
         Else
             Console.WriteLine("
-This program was designed to extract raw sound and full motion videos from Pandemic's BF1 and BF2
-Options are -i *filename* -p *pc/ps2/xbox* -v *bf1/bf2* currently
+This program was designed to extract raw sound and full motion videos from Pandemic's BF1 and BF2 and The Clone Wars.
+Options are -i *filename* -p *pc/ps2/xbox* -v *bf1/bf2/tcw* currently
 All switches must be in order -i -p -v, but only i is required.  Defaults are pc and bf1.
 
 Use Example: SoundRipperVB.exe -i cw.lvl -p ps2 -v bf1
@@ -322,7 +322,14 @@ Please read the included readme for various file extraction types")
         Dim wavtype As String
         Dim filetype As String = sndfile.Substring(sndfile.Length - 4).ToLower()
 
+        'TCW - default file
+        If filetype = ".msb" Then
+            filetype = ".msh"
+            sndfile = sndfile.Substring(0, sndfile.Length - 4) & ".msh"
+            UpdateProjectLog("Corrected msb to msh for " & sndfile)
+        End If
 
+        UpdateProjectLog("Filetype " & filetype & vbCr)
         'This code is pretty arbitrary with what it picks for the dissection type.  It's good enough for now
         If filetype = ".lvl" Or filetype = ".str" Then
             If platform = "ps2" Then
@@ -340,16 +347,23 @@ Please read the included readme for various file extraction types")
             Else
                 wavtype = "bik"
             End If
-        Else
-            wavtype = "wavPCM16"
-        End If
+        ElseIf filetype = ".msh" Then 'or msb
+            'TCW code, only support PS2 currently
+            If platform = "ps2" Then
+                wavtype = "tcwvag"
+            Else
+                wavtype = "tcwvag"
+            End If
+            Else
+                wavtype = "wavPCM16"
+            End If
 
 
 
 
 
-        Dim SearchStart As Byte()
-        Dim dataWrapper As Byte()
+            Dim SearchStart As Byte()
+            Dim dataWrapper As Byte()
 
 
         'give us a starting search point
@@ -363,42 +377,45 @@ Please read the included readme for various file extraction types")
         ElseIf wavtype = "xmv" Then
             SearchStart = {21, 54, 208, 131}
             dataWrapper = {165, 226, 114, 216}
-        Else
-            SearchStart = {92, 217, 160, 35}
-            dataWrapper = {165, 226, 114, 216}
-        End If
+        ElseIf wavtype = "tcwvag" And filetype = ".msh" Then
+            SearchStart = {34, 86, 0, 0} 'not really correct but ah well.  Only one file for wavs i see
+                dataWrapper = {0}
+            Else
+                SearchStart = {92, 217, 160, 35}
+                dataWrapper = {165, 226, 114, 216}
+            End If
 
-        'variable inits
-        Dim Startindex = 0
-        Dim Endindex = 1
-        Dim bFound As Boolean = True
+            'variable inits
+            Dim Startindex = 0
+            Dim Endindex = 1
+            Dim bFound As Boolean = True
 
-        Dim fileCounter As Integer = 0
-        Dim pos As Integer = 0
-        Dim encoding As New System.Text.ASCIIEncoding
+            Dim fileCounter As Integer = 0
+            Dim pos As Integer = 0
+            Dim encoding As New System.Text.ASCIIEncoding
 
-        Dim wavByte(), sampleByte() As Byte
-        Dim nameHash As UInt32
-        Dim wavSize, sampleRate, wavinbankint, channel, NoName As Integer
-        Dim header, newWavFile, bytedata, wavinbankbyte, channelbyte As Byte()
-        Dim wavname, extractedname As New String("")
-        Dim overallcounter = 0
-        Dim savePosition(databankcount) As Integer
+            Dim wavByte(), sampleByte() As Byte
+            Dim nameHash As UInt32
+            Dim wavSize, sampleRate, wavinbankint, channel, NoName As Integer
+            Dim header, newWavFile, bytedata, wavinbankbyte, channelbyte As Byte()
+            Dim wavname, extractedname As New String("")
+            Dim overallcounter = 0
+            Dim savePosition(databankcount) As Integer
 
 
         'dataPosition for later, not needed for bik since they are stored with their header intact
-        If wavtype <> "bik" Then
+        If wavtype <> "bik" And wavtype <> "tcwvag" Then
             savePosition = FindDataStart(sndfile, dataWrapper)
         End If
 
 
         'file functions
         If (Not System.IO.Directory.Exists(sndfile.Substring(0, sndfile.Length - 4))) Then
-            My.Computer.FileSystem.CreateDirectory(sndfile.Substring(0, sndfile.Length - 4))
-        End If
-        Dim b() As Byte = IO.File.ReadAllBytes(sndfile) 'read file as array of bytes 
-        Dim fs As New IO.FileStream(sndfile, IO.FileMode.Open)
-        Dim binary_reader As New IO.BinaryReader(fs)
+                My.Computer.FileSystem.CreateDirectory(sndfile.Substring(0, sndfile.Length - 4))
+            End If
+            Dim b() As Byte = IO.File.ReadAllBytes(sndfile) 'read file as array of bytes 
+            Dim fs As New IO.FileStream(sndfile, IO.FileMode.Open)
+            Dim binary_reader As New IO.BinaryReader(fs)
 
 #End Region
         If wavtype = "bik" Then
@@ -442,9 +459,78 @@ Please read the included readme for various file extraction types")
                 'End If
             Next
 #End Region
-        Else
-#Region "Sound Code (and pss)"
+#Region "TCW Files"
+        ElseIf wavtype = "tcwvag" Then
             For i As Integer = 0 To b.Length - SearchStart.Length - 1 'if it doesn't find searchstart, keep going
+                If b(i) = SearchStart(0) Then
+                    bFound = True
+                    For j As Integer = 0 To SearchStart.Length - 1
+                        If b(i + j) <> SearchStart(j) Then
+                            bFound = False
+                            Exit For
+                        End If
+                    Next
+                    If bFound Then 'when it finds search start
+                        fileCounter += 1 'start at 1, count up
+
+                        'Read size of wave, convert to Uint32
+                        fs.Position = i - 12
+                        wavByte = binary_reader.ReadBytes(4)
+                        wavSize = BitConverter.ToUInt32(wavByte, 0)
+
+                        'store save position, probably meh
+                        fs.Position = i - 4
+                        ReDim Preserve savePosition(fileCounter)
+                        savePosition(fileCounter) = BitConverter.ToUInt32(binary_reader.ReadBytes(4), 0) 'i got lazy And combined the two things up above
+
+                        UpdateProjectLog("Data start at byte " & savePosition(fileCounter) & " for file " & fileCounter & vbCr)
+
+
+                        addlinetoprojectlog = wavtype & " header found at byte: " & i & " Size: " & wavSize & vbCr
+                        UpdateProjectLog(addlinetoprojectlog)
+
+                        'Future me: Please fix this, I'm tired and this is really, really not efficient. 1/21/20
+                        'I would prefer array storage of the values (opening each file only once), but that really doesn't fit in the current framework. Gonna have to rewrite some stuff
+                        'I feel like a real programmer now.
+                        fs.Close()
+                        binary_reader.Close()
+                        fs = New IO.FileStream(sndfile.Substring(0, sndfile.Length - 4) & ".msb", IO.FileMode.Open)
+                        binary_reader = New IO.BinaryReader(fs)
+                        fs.Position = savePosition(fileCounter) 'This was not the original intent of this variable, but it's wasted otherwise...
+                        bytedata = binary_reader.ReadBytes(wavSize)
+                        fs.Close()
+                        binary_reader.Close()
+                        fs = New IO.FileStream(sndfile, IO.FileMode.Open)
+                        binary_reader = New IO.BinaryReader(fs)
+
+                        'What that code just did was close the first file (.msh) with all the info, open the .msb file, rip out the data it needs, then re-open the old file.
+                        'END bad code section.
+
+                        'file generator code
+                        'put some defaults in here to avoid null exceptions
+                        extractedname = "tcwwav"
+                        sampleRate = 22050
+                        channel = 1
+
+                        header = AddHeader(wavtype, wavSize, sampleRate, channel, extractedname)
+                        newWavFile = header.Concat(bytedata).ToArray()
+                        If wavtype = "tcwvag" Then
+                            wavname = sndfile.Substring(0, sndfile.Length - 4) & "\tcwsound" & fileCounter & ".vag"
+                        Else
+                            wavname = sndfile.Substring(0, sndfile.Length - 4) & "\tcwsound" & fileCounter & ".vag"
+                        End If
+
+                        'write said file
+                        My.Computer.FileSystem.WriteAllBytes(wavname, newWavFile, False)
+                        'End If
+                        Startindex = i
+                    End If
+                End If
+            Next
+#End Region
+        Else
+#Region "Sound Code (And pss)"
+                            For i As Integer = 0 To b.Length - SearchStart.Length - 1 'if it doesn't find searchstart, keep going
                 If b(i) = SearchStart(0) Then
                     bFound = True
                     For j As Integer = 0 To SearchStart.Length - 1
@@ -550,6 +636,14 @@ Please read the included readme for various file extraction types")
                                     End If
                                 End If
 
+                                'Useless code, dupes are weird.
+                                'If (System.IO.File.Exists(wavname)) Then
+                                'If (wavtype = "wavIPCM" Or wavtype = "wavxPCM") Then
+                                'wavname = wavname.Substring(0, wavname.Length - 4) + overallcounter.ToString() + ".wav"
+                                'Else
+                                'wavname = wavname.Substring(0, wavname.Length - 4) + overallcounter.ToString() + "." + wavtype
+                                'End If
+                                'End If
                                 'write said file
                                 My.Computer.FileSystem.WriteAllBytes(wavname, newWavFile, False)
                                 'End If
