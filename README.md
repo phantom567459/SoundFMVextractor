@@ -1,5 +1,4 @@
 # SoundRipperVB
-# SoundRipperVB
 For extracting sounds and FMV from Pandemic's SWBF and The Clone Wars games
 
 Put your sound file in the same folder as the .exe and run from the command line.  Sound files are in .lvl or .bnk format, and are located in Gamedata\Data\_LVL_platform\Sound\. For TCW PS2, file names are .msh/msb.  Both are accepted, the program figures out what it needs.
