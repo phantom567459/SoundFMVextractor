@@ -319,8 +319,10 @@ Please read the included readme for various file extraction types")
 
         'Credit Sleepkiller for Dictionary
         Dim hashNamesDictionary As Dictionary(Of UInt32, String) = GetHashNameLookupDictionary(version)
-        Dim wavtype As String
+        Dim wavtype, filelistext As String
         Dim filetype As String = sndfile.Substring(sndfile.Length - 4).ToLower()
+        Dim sndfilewoext As String = sndfile.Substring(0, sndfile.Length - 4) 'sound file without extension
+        System.IO.File.WriteAllText(sndfilewoext & ".sfx", "")
 
         'TCW - default file
         If filetype = ".msb" Then
@@ -339,6 +341,7 @@ Please read the included readme for various file extraction types")
             Else
                 wavtype = "wavIPCM"
             End If
+            filelistext = ".stm"
         ElseIf filetype = ".mvs" Then
             If platform = "ps2" Then
                 wavtype = "pss"
@@ -347,6 +350,7 @@ Please read the included readme for various file extraction types")
             Else
                 wavtype = "bik"
             End If
+            filelistext = ".mlst"
         ElseIf filetype = ".msh" Then 'or msb
             'TCW code, only support PS2 currently
             If platform = "ps2" Then
@@ -354,9 +358,11 @@ Please read the included readme for various file extraction types")
             Else
                 wavtype = "tcwvag"
             End If
-            Else
-                wavtype = "wavPCM16"
-            End If
+            filelistext = ".tcwsfx"
+        Else
+            wavtype = "wavPCM16"
+            filelistext = ".sfx"
+        End If
 
 
 
@@ -398,8 +404,8 @@ Please read the included readme for various file extraction types")
             Dim nameHash As UInt32
             Dim wavSize, sampleRate, wavinbankint, channel, NoName As Integer
             Dim header, newWavFile, bytedata, wavinbankbyte, channelbyte As Byte()
-            Dim wavname, extractedname As New String("")
-            Dim overallcounter = 0
+        Dim wavname, extractedname As New String("")
+        Dim overallcounter = 0
             Dim savePosition(databankcount) As Integer
 
 
@@ -410,10 +416,10 @@ Please read the included readme for various file extraction types")
 
 
         'file functions
-        If (Not System.IO.Directory.Exists(sndfile.Substring(0, sndfile.Length - 4))) Then
-                My.Computer.FileSystem.CreateDirectory(sndfile.Substring(0, sndfile.Length - 4))
-            End If
-            Dim b() As Byte = IO.File.ReadAllBytes(sndfile) 'read file as array of bytes 
+        If (Not System.IO.Directory.Exists(sndfilewoext)) Then
+            My.Computer.FileSystem.CreateDirectory(sndfilewoext)
+        End If
+        Dim b() As Byte = IO.File.ReadAllBytes(sndfile) 'read file as array of bytes 
             Dim fs As New IO.FileStream(sndfile, IO.FileMode.Open)
             Dim binary_reader As New IO.BinaryReader(fs)
 
@@ -430,30 +436,34 @@ Please read the included readme for various file extraction types")
                         End If
                     Next
                     If bFound Then
-                        fileCounter += 1 'start at 1, count up
-                        'If fileCounter = 1 Then
-                        'UpdateProjectLog("Skip 1...")
-                        'Else
-                        'Read size of wave, convert to Uint32
-                        fs.Position = i + 4
-                        wavByte = binary_reader.ReadBytes(4)
-                        wavSize = BitConverter.ToUInt32(wavByte, 0)
-                        wavSize += 8
+                        'Check to make sure it really is what we want
+                        'bugfix created 2/4/20 - shell.mvs BF1 gave a false positive in one video, generating an outlandish garbage file.
+                        fs.Position = i - 1
+                        If binary_reader.ReadByte() <> 0 And fileCounter > 0 Then
+                            UpdateProjectLog("False Positive" & vbCr)
+                        Else
 
-                        'Read raw wav data
-                        fs.Position = i
-                        bytedata = binary_reader.ReadBytes(wavSize)
+                            fileCounter += 1 'start at 1, count up
+                            'Read size of bik, convert to Uint32
+                            fs.Position = i + 4
+                            wavByte = binary_reader.ReadBytes(4)
+                            wavSize = BitConverter.ToUInt32(wavByte, 0)
+                            wavSize += 8
 
-                        addlinetoprojectlog = wavtype & " video header found at byte: " & i & " Size: " & wavSize & vbCr
-                        UpdateProjectLog(addlinetoprojectlog)
+                            'Read raw bik data
+                            fs.Position = i
+                            bytedata = binary_reader.ReadBytes(wavSize)
 
-                        wavname = sndfile.Substring(0, sndfile.Length - 4) & "\movie" + fileCounter.ToString() + "." + wavtype
+                            addlinetoprojectlog = wavtype & " video header found at byte: " & i & " Size: " & wavSize & vbCr
+                            UpdateProjectLog(addlinetoprojectlog)
 
-                        'write said file
-                        My.Computer.FileSystem.WriteAllBytes(wavname, bytedata, False)
+                            wavname = sndfile.Substring(0, sndfile.Length - 4) & "\movie" + fileCounter.ToString() + "." + wavtype
 
-                        Startindex = i
-                        'End If
+                            'write said file
+                            My.Computer.FileSystem.WriteAllBytes(wavname, bytedata, False)
+
+                            Startindex = i
+                        End If
                     End If
                 End If
                 'End If
@@ -578,8 +588,9 @@ Please read the included readme for various file extraction types")
                             End If
 
                             'Please fix me. I don't need another nested if...
-                            If NoName = 1 And (version = "bf1") And (sndfile = "common.bnk") And (overallcounter > 1394) And (overallcounter < 1410) Then 'do everything possible to avoid this code...
+                            If NoName = 1 And (version = "bf1") And (sndfile = "common.bnk") And ((extractedname = "74323FB9" Or extractedname = "71323B00" Or extractedname = "72323C93" Or extractedname = "77324472" Or extractedname = "78324605" Or extractedname = "7532414C")) Then 'do everything possible to avoid this code...
                                 UpdateProjectLog("Bug in BF1 Common.bnk" & vbCr)
+                                'Go nowhere AND BEGONE HEATHEN BUG - Fixed again, 2/3/20
                                 'There's a set of 6 files in BF1 common.bnk that mess up this code - this is rudimentary but gets the job done
                                 'My theory is that they are duped or references but they match no known file in the sound docs.
                             Else
@@ -622,17 +633,17 @@ Please read the included readme for various file extraction types")
                                 'PSS and XMV do not need a header
                                 If wavtype = "pss" Then
                                     newWavFile = bytedata
-                                    wavname = sndfile.Substring(0, sndfile.Length - 4) & "\ps2movie" + overallcounter.ToString() + ".pss"
+                                    wavname = sndfilewoext & "\ps2movie" + overallcounter.ToString() + ".pss"
                                 ElseIf wavtype = "xmv" Then
                                     newWavFile = bytedata
-                                    wavname = sndfile.Substring(0, sndfile.Length - 4) & "\xboxmovie" + overallcounter.ToString() + ".xmv"
+                                    wavname = sndfilewoext & "\xboxmovie" + overallcounter.ToString() + ".xmv"
                                 Else
                                     header = AddHeader(wavtype, wavSize, sampleRate, channel, extractedname) 'I pass extracted name through but may ignore it because it doesn't matter for vag...
                                     newWavFile = header.Concat(bytedata).ToArray()
                                     If wavtype = "vag" Then
-                                        wavname = sndfile.Substring(0, sndfile.Length - 4) & "\" + extractedname + ".vag"
+                                        wavname = sndfilewoext & "\" + extractedname + ".vag"
                                     Else
-                                        wavname = sndfile.Substring(0, sndfile.Length - 4) & "\" + extractedname + ".wav"
+                                        wavname = sndfilewoext & "\" + extractedname + ".wav"
                                     End If
                                 End If
 
@@ -646,6 +657,8 @@ Please read the included readme for various file extraction types")
                                 'End If
                                 'write said file
                                 My.Computer.FileSystem.WriteAllBytes(wavname, newWavFile, False)
+                                'write .sfx file
+                                My.Computer.FileSystem.WriteAllText(sndfilewoext & filelistext, wavname & vbCr, True)
                                 'End If
                                 Startindex = i
                                 NoName = 0 'reinitialize
