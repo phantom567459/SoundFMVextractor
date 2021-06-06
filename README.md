@@ -30,6 +30,8 @@ For larger jobs, FFMpeg Batch is absolutely amazing, and includes a GUI.
 Default is pc/bf1.  
 If you wish to extract and use .pss movie files, you will need to research PSS demuxing and converting.  This is beyond the scope of this program.
 
+Update 6/6/2021  - Sound extract Bug fixes (still has some issues with extracting ambient on BF2 PC & Xbox)
+
 Update 1/21/2020 - officially added BF2 support (it's been there in the source for a while).  Added support for PS2 The Clone Wars, with limited functionality.  BF2 and BF1 hash lists were split off.
 
 Update 10/31/2019 - Happy Halloween! Public Release - fixed common.bnk for SWBF1, added xmv extraction (still wonky), added -v (version) with bf2 option but only works for common.bnk at the moment.
@@ -54,7 +56,7 @@ psych0fred - help with file formats and file comparisons and FilenameHashes.csv 
 
 Sleepkiller - programming help, file formats, code contributions
 
-BAD_AL - HashHelper.vb & PS2 Vag extract bug fix.
+BAD_AL - HashHelper.vb & sound extract bug fix.
 
 SWBFgamers.com - for their amazing community and contributions toward SWBF1
 
