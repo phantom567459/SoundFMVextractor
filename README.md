@@ -32,6 +32,8 @@ If you wish to extract and use .pss movie files, you will need to research PSS d
 
 Update 6/6/2021  - Sound extract Bug fixes (still has some issues with extracting ambient on BF2 PC & Xbox)
 
+Updated 5/30/2021 - Fixed PS2 VAG extract bug, added all known BF1 & Bf2 sound file names & aliases.
+
 Update 1/21/2020 - officially added BF2 support (it's been there in the source for a while).  Added support for PS2 The Clone Wars, with limited functionality.  BF2 and BF1 hash lists were split off.
 
 Update 10/31/2019 - Happy Halloween! Public Release - fixed common.bnk for SWBF1, added xmv extraction (still wonky), added -v (version) with bf2 option but only works for common.bnk at the moment.
@@ -39,8 +41,6 @@ Update 10/31/2019 - Happy Halloween! Public Release - fixed common.bnk for SWBF1
 Update 10/22/2019 - fixed most PS2 VAG extraction, PSS extraction complete, Xbox sound support added, added xbox to platform argument, just a little code cleanup.
 
 Update 10/11/2019 - added janky PS2 VAG functionality and -p (for platform) command line option.  Please use ffmpeg as above to convert VAG to PCM16
-
-Updated 5/30/2021 - Fixed PS2 VAG extract bug, added all known BF1 & Bf2 sound file names & aliases.
 
 This is a WIP and does not extract some sounds correctly. Please file an issue and be specific on what file is not working and platform.
 
