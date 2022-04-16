@@ -9,6 +9,7 @@ Module main
     'globals
     Dim addlinetoprojectlog As String
     Dim databankcount As Integer
+    Dim logFile As String = "log.txt"
 
     'Header for str files:
     'emo_ (stream head followed by size of files in bank)
@@ -213,10 +214,38 @@ Module main
 
     Sub UpdateProjectLog(ByVal projlog As String)
         'this updates the project log.  new log is generated on run
-        Dim file As System.IO.StreamWriter
-        file = My.Computer.FileSystem.OpenTextFileWriter("log.txt", True)
-        file.Write(projlog)
-        file.Close()
+        Dim written As Boolean = False
+        While written = False
+            Try
+                Dim file As System.IO.StreamWriter
+                file = My.Computer.FileSystem.OpenTextFileWriter(logFile, True)
+                file.Write(projlog)
+                file.Close()
+                written = True
+            Catch ex As Exception
+                Console.WriteLine("Caught exception while updating '{0}' {1}; Sleep(100) & try again... ", logFile, ex.Message)
+                System.Threading.Thread.Sleep(100)
+            End Try
+        End While
+
+    End Sub
+
+    Sub InitProjectLog()
+        Console.WriteLine("Initializing log file: " & logFile)
+        Dim written As Boolean = False
+        While written = False
+            Try
+                Dim file As System.IO.StreamWriter
+                file = My.Computer.FileSystem.OpenTextFileWriter(logFile, False)
+                file.Write("")
+                file.Close()
+                written = True
+            Catch ex As Exception
+                Console.WriteLine("Caught exception while initializing '{0}' {1}; Sleep(100) & try again... ", logFile, ex.Message)
+                System.Threading.Thread.Sleep(100)
+            End Try
+        End While
+
     End Sub
     Public Sub Main()
 
@@ -312,17 +341,31 @@ Please read the included readme for various file extraction types")
 
 #Region "Body"
 #Region "variables"
-        System.IO.File.WriteAllText("log.txt", "")
+
+        logFile = sndfile.Replace("\", "_") + "_log.txt"
+        InitProjectLog()
         addlinetoprojectlog = "Parsing " & sndfile & " for " & platform & vbCr
         UpdateProjectLog(addlinetoprojectlog)
-
-
 
         'Credit Sleepkiller for Dictionary
         Dim wavtype, filelistext As String
         Dim filetype As String = sndfile.Substring(sndfile.Length - 4).ToLower()
         Dim sndfilewoext As String = sndfile.Substring(0, sndfile.Length - 4) 'sound file without extension
-        System.IO.File.WriteAllText(sndfilewoext & ".sfx", "")
+
+        Dim stm_initialized As Boolean = False
+        While stm_initialized = False
+            Try
+                System.IO.File.WriteAllText(sndfilewoext & ".sfx", "")
+                System.IO.File.WriteAllText(sndfilewoext & ".stm", "")
+                stm_initialized = True
+                Console.WriteLine("Initialized {0}.sfx and {0}.stm files.", sndfilewoext)
+            Catch ex As Exception
+                Console.WriteLine("Error Initializing {0}.sfx and {0}.stm files, Sleep(100) and try again...", sndfilewoext)
+                System.Threading.Thread.Sleep(100)
+            End Try
+        End While
+
+
 
         'TCW - default file
         If filetype = ".msb" Then
@@ -689,7 +732,12 @@ Please read the included readme for various file extraction types")
                                 'write .sfx file
                                 Dim entry As String
                                 entry = String.Format("{0}   -resample {1} {2} {3} ", wavname, platform, RoundSampleRate(sampleRate), vbCr)
-                                My.Computer.FileSystem.WriteAllText(sndfilewoext & filelistext, entry, True)
+
+                                If channel = 2 Then
+                                    My.Computer.FileSystem.WriteAllText(sndfilewoext & ".stm", entry, True)
+                                Else
+                                    My.Computer.FileSystem.WriteAllText(sndfilewoext & ".sfx", entry, True)
+                                End If
                                 'End If
                             End If
 
