@@ -687,7 +687,9 @@ Please read the included readme for various file extraction types")
                             If skip = False Then
                                 My.Computer.FileSystem.WriteAllBytes(wavname, newWavFile, False)
                                 'write .sfx file
-                                My.Computer.FileSystem.WriteAllText(sndfilewoext & filelistext, wavname & vbCr, True)
+                                Dim entry As String
+                                entry = String.Format("{0}   -resample {1} {2} {3} ", wavname, platform, RoundSampleRate(sampleRate), vbCr)
+                                My.Computer.FileSystem.WriteAllText(sndfilewoext & filelistext, entry, True)
                                 'End If
                             End If
 
@@ -755,5 +757,21 @@ Please read the included readme for various file extraction types")
 
 
     End Sub
+
+    Private Function RoundSampleRate(ByVal sampleRate As Int32) As Int32
+        Dim numbers = New Int32() {8000, 11025, 16000, 22050, 44100, 48000} ' in Hz
+        Dim retVal As Int32 = sampleRate
+        Dim closest As Int32 = 100000
+        Dim test As Int32 = 100000
+        For i = 0 To numbers.Length - 1
+            test = Math.Abs(numbers(i) - sampleRate)
+            If test < closest Then
+                retVal = numbers(i)
+                closest = test
+            End If
+        Next
+        Return retVal
+
+    End Function
 End Module
 
