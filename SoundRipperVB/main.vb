@@ -3,6 +3,8 @@ Imports System.Text
 
 ' wav reference:
 ' http://soundfile.sapp.org/doc/WaveFormat/
+'vag reference
+'https://wiki.xentax.com/index.php/VAG_Audio
 
 Module main
 
@@ -190,20 +192,44 @@ Module main
             Return 0
         ElseIf HeaderType = "vag" Or HeaderType = "tcwvag" Then
             'Generate wav header
-            Dim wavHeader2, wavheader3 As Byte()
-
             'Dim factSize As Byte() = BitConverter.GetBytes(resampleSize)
 
             'VB doesn't like byte() to byte, so we're just going to eat up more memory here and make more variables
-            Dim wavHeader As Byte() = {86, 65, 71, 112, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 24, 144, 0, 0, 86, 34, 255, 255, 255, 255, 0, 16, 0, 0, 0, 0, 0, 0} ', VAG, then file name
-            wavHeader2 = {65, 73, 67, 79, 77, 50, 48, 52}
-            wavheader3 = {46, 118, 97, 103, 0, 0, 0, 0}
+            'https://wiki.xentax.com/index.php/VAG_Audio
+            Dim wavHeader1 As Byte() = {
+                86, 65, 71, 112, ' VAGP (magic)
+                0, 0, 0, 2,      ' [format version]
+                0, 0, 0, 0,      ' source start offset // always "0"
+                0, 0, 24, 144,   ' waveform data size
+                0, 0, 86, 34,    ' sample rate (Hz)
+                255, 255,        ' base volume for left channel
+                255, 255,        ' base volume for right channel
+                0, 16,           ' base pitch (includes fs modulation)
+                0, 0,            ' base ADSR1
+                0, 0,            ' base ADSR2
+                0, 0}            ' reserved
+            Dim wavHeader2 As Byte() = {  ' for the track name. 16 bytes long (for version 2)
+                0, 0, 0, 0,
+                0, 0, 0, 0,
+                0, 0, 0, 0,
+                0, 0, 0, 0}
 
-            Dim filename As String = Name
+            ' sample rate  (4 bytes)
+            Dim sampleBytes As Byte() = BitConverter.GetBytes(SampleRate)
+            wavHeader1(16) = sampleBytes(3) ' Big Endian
+            wavHeader1(17) = sampleBytes(2)
+            wavHeader1(18) = sampleBytes(1)
+            wavHeader1(19) = sampleBytes(0)
+            ' track name 
+            Dim trackName As String = Name
+            If trackName.Length > 16 Then
+                trackName = Name.Substring(0, 16)
+            End If
+            For index = 0 To trackName.Length - 1
+                wavHeader2(index) = Convert.ToByte(trackName.Chars(index))
+            Next
 
-            'rawr concatentation - RIP readability
-            'Dim totalHeader As Byte() = wavHeader.Concat(Name).Concat(wavHeader2)
-            Dim totalHeader As Byte() = wavHeader.Concat(wavHeader2).Concat(wavheader3).ToArray()
+            Dim totalHeader As Byte() = wavHeader1.Concat(wavHeader2).ToArray()
 
             Return totalHeader 'return byte array
         Else
@@ -612,7 +638,7 @@ Please read the included readme for various file extraction types")
                             If wavtype <> "pss" And wavtype <> "xmv" Then
                                 fs.Position = i - 4
                                 sampleByte = binary_reader.ReadBytes(4)
-                                sampleRate = BitConverter.ToUInt32(sampleByte, 0)
+                                sampleRate = RoundSampleRate(BitConverter.ToUInt32(sampleByte, 0))
                             End If
 
                             'Read size of wave, convert to Uint32
@@ -731,7 +757,7 @@ Please read the included readme for various file extraction types")
                                 My.Computer.FileSystem.WriteAllBytes(wavname, newWavFile, False)
                                 'write .sfx file
                                 Dim entry As String
-                                entry = String.Format("{0}   -resample {1} {2} {3} ", wavname, platform, RoundSampleRate(sampleRate), vbCr)
+                                entry = String.Format("{0}   -resample {1} {2} {3} ", wavname, platform, sampleRate, vbCr)
 
                                 If channel = 2 Then
                                     My.Computer.FileSystem.WriteAllText(sndfilewoext & ".stm", entry, True)
