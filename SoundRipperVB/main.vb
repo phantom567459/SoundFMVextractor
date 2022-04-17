@@ -192,9 +192,6 @@ Module main
             Return 0
         ElseIf HeaderType = "vag" Or HeaderType = "tcwvag" Then
             'Generate wav header
-            'Dim factSize As Byte() = BitConverter.GetBytes(resampleSize)
-
-            'VB doesn't like byte() to byte, so we're just going to eat up more memory here and make more variables
             'https://wiki.xentax.com/index.php/VAG_Audio
             Dim wavHeader1 As Byte() = {
                 86, 65, 71, 112, ' VAGP (magic)
