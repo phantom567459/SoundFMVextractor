@@ -197,27 +197,34 @@ Module main
                 86, 65, 71, 112, ' VAGP (magic)
                 0, 0, 0, 2,      ' [format version]
                 0, 0, 0, 0,      ' source start offset // always "0"
-                0, 0, 24, 144,   ' waveform data size
-                0, 0, 86, 34,    ' sample rate (Hz)
+                0, 0, 24, 144,   ' waveform data size  // will overwrite this below
+                0, 0, 86, 34,    ' sample rate (Hz)    // will overwrite this below
                 255, 255,        ' base volume for left channel
                 255, 255,        ' base volume for right channel
                 0, 16,           ' base pitch (includes fs modulation)
                 0, 0,            ' base ADSR1
                 0, 0,            ' base ADSR2
                 0, 0}            ' reserved
-            Dim wavHeader2 As Byte() = {  ' for the track name. 16 bytes long (for version 2)
+            Dim wavHeader2 As Byte() = {  ' for the track name. 16 bytes long (version 2)
                 0, 0, 0, 0,
                 0, 0, 0, 0,
                 0, 0, 0, 0,
                 0, 0, 0, 0}
+            ' fill in Data Size
+            Dim dataSize As Byte() = BitConverter.GetBytes(Size)
+            wavHeader1(12) = dataSize(3)
+            wavHeader1(13) = dataSize(2)
+            wavHeader1(14) = dataSize(1)
+            wavHeader1(15) = dataSize(0)
 
-            ' sample rate  (4 bytes)
+            ' fill in sample rate  (4 bytes)
             Dim sampleBytes As Byte() = BitConverter.GetBytes(SampleRate)
-            wavHeader1(16) = sampleBytes(3) ' Big Endian
+            wavHeader1(16) = sampleBytes(3)
             wavHeader1(17) = sampleBytes(2)
             wavHeader1(18) = sampleBytes(1)
             wavHeader1(19) = sampleBytes(0)
-            ' track name 
+
+            'Fill out track name
             Dim trackName As String = Name
             If trackName.Length > 16 Then
                 trackName = Name.Substring(0, 16)
