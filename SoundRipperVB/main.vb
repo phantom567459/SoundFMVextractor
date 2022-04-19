@@ -1,5 +1,6 @@
 ﻿Imports System.IO
 Imports System.Text
+Imports System.Windows.Forms
 
 ' wav reference:
 ' http://soundfile.sapp.org/doc/WaveFormat/
@@ -12,6 +13,10 @@ Module main
     Dim addlinetoprojectlog As String
     Dim databankcount As Integer
     Dim logFile As String = "log.txt"
+    Public sndfile As String ' = "shell.lvl" 'lvl to extract sound/fmv
+    Public platform As String = "pc" 'pc/ps2/xbox
+    Public version As String = "bf1" 'bf1/bf2
+
 
     'Header for str files:
     'emo_ (stream head followed by size of files in bank)
@@ -278,78 +283,46 @@ Module main
             End Try
         End While
     End Sub
-    Public Sub Main()
 
-#Region "CommandLineParameters"
-        'Get the values of the command line in an array
-        ' Index  Discription
-        ' 0      Full path of executing prograsm with program name
-        ' 1      First switch in command in your example -t
-        ' 2      First value in command in your example text1
-        ' 3      Second switch in command in your example -s
-        ' 4      Second value in command in your example text2
-        Dim clArgs() As String = Environment.GetCommandLineArgs()
-        Dim sndfile As String ' = "shell.lvl" 'lvl to extract sound/fmv
-        Dim platform As String = "pc" 'pc/ps2/xbox
-        Dim version As String = "bf1" 'bf1/bf2
-        ' Hold the command line values
-        ' Dim type As String = String.Empty
-        ' Test to see if two switchs and two values were passed in
-        ' if yes parse the array
-        If clArgs.Count() > 2 Then
-            If clArgs(1) = "-i" Then
-                sndfile = clArgs(2).ToLower()
-                If sndfile = Nothing Then
-                    Console.WriteLine("You didn't enter a file")
-                    Exit Sub
-                End If
-                If Not My.Computer.FileSystem.FileExists(sndfile) Then
-                    Console.WriteLine("File does not exist.  Please make sure you have the file name with extension (e.g. shell.lvl)")
-                    Exit Sub
-                End If
-            Else
-                Console.WriteLine("Please enter the correct argument")
-                Exit Sub
+    Public Sub ProcessArgs(ByVal args As String())
+        For i As Int16 = 0 To args.Length - 1
+            If args(i) = "-i" And args.Length > i + 1 Then
+                sndfile = args(i + 1)
+                i = i + 1
+            ElseIf args(i) = "-p" And args.Length > i + 1 Then
+                platform = args(i + 1).ToLower()
+                i = i + 1
+            ElseIf args(i) = "-v" And args.Length > i + 1 Then
+                version = args(i + 1).ToLower()
+                i = i + 1
             End If
+        Next
+    End Sub
 
-            If clArgs.Count > 4 Then
-                If clArgs(3) = "-p" Then
-                    platform = clArgs(4).ToLower()
-                    If platform <> "pc" And platform <> "ps2" And platform <> "xbox" Then
-                        Console.WriteLine("Please select a valid platform: pc, ps2, xbox")
-                        Exit Sub
-                    End If
-                ElseIf clArgs(3) = "-v" Then
-                    version = clArgs(4).ToLower()
-                    If version <> "bf1" And version <> "bf2" And version <> "tcw" Then
-                        Console.WriteLine("Please select a valid game: bf1, bf2, tcw")
-                        Exit Sub
-                    End If
-                Else
-                    Console.WriteLine("Please enter the correct argument")
-                    Exit Sub
-                End If
-            End If
+    Private Function ParamsAreValid()
+        Dim retVal As Boolean = True
+        Dim platforms As String() = {"pc", "ps2", "xbox"}
+        Dim versions As String() = {"bf1", "bf2"}
+        If Not platforms.Contains(platform.ToLower()) Then
+            Console.WriteLine("Invalid Platform '{0}'", platform)
+            retVal = False
+        ElseIf Not versions.Contains(version.ToLower()) Then
+            Console.WriteLine("Invalid Version '{0}'", version)
+            retVal = False
+        ElseIf Not File.Exists(sndfile) Then
+            Console.WriteLine("File does not exist: '{0}'", sndfile)
+            retVal = False
+        End If
+        Return retVal
+    End Function
 
-            If clArgs.Count > 6 Then
-                If clArgs(5) = "-v" Then
-                    version = clArgs(6).ToLower()
-                    If version <> "bf1" And version <> "bf2" And version <> "tcw" Then
-                        Console.WriteLine("Please select a valid game: bf1, bf2, tcw")
-                        Exit Sub
-                    End If
-                Else
-                    Console.WriteLine("Please enter the correct argument")
-                    Exit Sub
-                End If
-            End If
-        Else
-            Console.WriteLine("
+    Private Sub PrintHelp()
+        Console.WriteLine("
 This program was designed to extract raw sound and full motion videos from Pandemic's BF1 and BF2 and The Clone Wars.
 Options are -i *filename* -p *pc/ps2/xbox* -v *bf1/bf2/tcw* currently
-All switches must be in order -i -p -v, but only i is required.  Defaults are pc and bf1.
+Option -i <filename> is required.  Defaults are pc and bf1.
 
-Use Example: SoundRipperVB.exe -i cw.lvl -p ps2 -v bf1
+Command line use Example: SoundRipperVB.exe -i cw.lvl -p ps2 -v bf1
 
 To convert extracted sound files into a usable sound format use 'ffmpeg.exe' like this:
 
@@ -358,18 +331,21 @@ To convert extracted sound files into a usable sound format use 'ffmpeg.exe' lik
 You can download binary releases of 'ffmpeg.exe' at https://github.com/BtbN/FFmpeg-Builds/releases
 
 Please read the included readme for various file extraction types")
-
-
-            Exit Sub
+    End Sub
+    Public Sub Main(ByVal args As String())
+        ProcessArgs(args)
+        If args.Length = 0 Then
+            'Show GUI
+            Application.EnableVisualStyles()
+            Application.SetCompatibleTextRenderingDefault(False)
+            Application.Run(New MainForm())
+        ElseIf args(0).ToLower().StartsWith("-h") Or Not ParamsAreValid() Then
+            PrintHelp()
+        Else
+            Rip()
         End If
-        'Next
-        'End If
-
-        ' Console.WriteLine(type)
-        ' Console.ReadLine()
-#End Region
-
-
+    End Sub
+    Public Sub Rip()
 #Region "Body"
 #Region "variables"
 
