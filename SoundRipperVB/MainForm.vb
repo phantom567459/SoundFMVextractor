@@ -55,12 +55,19 @@ Public Class MainForm
             ElseIf btnXBOX.Checked Then
                 main.platform = "xbox"
             End If
+            'show the equivlent command line
+            Console.WriteLine(" SoundRipperVB.exe -i {0} -p {1} -v {2}", main.sndfile, main.platform, main.version)
+            Dim convertFile As String = main.Rip()
 
-            main.Rip()
+            ' enable the convert button
+            btnConvert.Tag = convertFile
+            Dim tip As New ToolTip()
+            tip.SetToolTip(btnConvert, "Run batch file: " & convertFile)
+            btnConvert.Enabled = True
         End If
     End Sub
 
-    Private Sub btnAbout_Click(sender As Object, e As EventArgs) Handles btnAbout.Click
+    Private Sub btnAbout_Click(sender As Object, e As EventArgs) Handles AboutToolStripMenuItem1.Click
         Dim message As String = "SoundRipperVB
 For extracting sounds and FMV from Pandemic's 
   Star Wars Battlefront (2004)
@@ -80,4 +87,34 @@ Use: SoundRipperVB.exe -help for the command line usage.
 "
         MessageBox.Show(message, "About")
     End Sub
+
+    Private Sub ExitToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles ExitToolStripMenuItem.Click
+        Close()
+    End Sub
+
+    Private Sub UpdateSampleRatesToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles UpdateSampleRatesToolStripMenuItem.Click
+        Dim form As UpdateSampleRatesForm = New UpdateSampleRatesForm()
+        form.Show()
+    End Sub
+
+    Private Sub WebsiteToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles WebsiteToolStripMenuItem.Click
+        Process.Start("https://github.com/phantom567459/SoundFMVextractor")
+    End Sub
+
+    Private Sub btnConvert_Click(sender As Object, e As EventArgs) Handles btnConvert.Click
+        Dim batchFile As String = btnConvert.Tag
+        If batchFile <> Nothing Then
+            Dim p As Process = New Process()
+            p.StartInfo.FileName = batchFile
+            p.StartInfo.UseShellExecute = True
+            Try
+                p.Start()
+            Catch ex As Exception
+                MessageBox.Show("Exception while starting convert batch file, " & ex.Message)
+            End Try
+        Else
+            MessageBox.Show("Error, 'Convert to PCM' batch file not set, run 'Rip' to set the batch file")
+        End If
+    End Sub
+
 End Class

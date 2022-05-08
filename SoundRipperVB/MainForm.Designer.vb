@@ -34,15 +34,23 @@ Partial Class MainForm
         Me.textFilename = New System.Windows.Forms.TextBox()
         Me.btnBrowse = New System.Windows.Forms.Button()
         Me.btnRip = New System.Windows.Forms.Button()
-        Me.btnAbout = New System.Windows.Forms.Button()
+        Me.MenuStrip1 = New System.Windows.Forms.MenuStrip()
+        Me.FileToolStripMenuItem = New System.Windows.Forms.ToolStripMenuItem()
+        Me.UpdateSampleRatesToolStripMenuItem = New System.Windows.Forms.ToolStripMenuItem()
+        Me.ExitToolStripMenuItem = New System.Windows.Forms.ToolStripMenuItem()
+        Me.AboutToolStripMenuItem = New System.Windows.Forms.ToolStripMenuItem()
+        Me.AboutToolStripMenuItem1 = New System.Windows.Forms.ToolStripMenuItem()
+        Me.WebsiteToolStripMenuItem = New System.Windows.Forms.ToolStripMenuItem()
+        Me.btnConvert = New System.Windows.Forms.Button()
         Me.GroupBox1.SuspendLayout()
         Me.GroupBox2.SuspendLayout()
+        Me.MenuStrip1.SuspendLayout()
         Me.SuspendLayout()
         '
         'Label1
         '
         Me.Label1.AutoSize = True
-        Me.Label1.Location = New System.Drawing.Point(12, 33)
+        Me.Label1.Location = New System.Drawing.Point(12, 47)
         Me.Label1.Name = "Label1"
         Me.Label1.Size = New System.Drawing.Size(34, 20)
         Me.Label1.TabIndex = 0
@@ -130,7 +138,7 @@ Partial Class MainForm
         Me.textFilename.AllowDrop = True
         Me.textFilename.Anchor = CType(((System.Windows.Forms.AnchorStyles.Top Or System.Windows.Forms.AnchorStyles.Left) _
             Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
-        Me.textFilename.Location = New System.Drawing.Point(52, 30)
+        Me.textFilename.Location = New System.Drawing.Point(52, 44)
         Me.textFilename.Name = "textFilename"
         Me.textFilename.Size = New System.Drawing.Size(428, 26)
         Me.textFilename.TabIndex = 4
@@ -138,7 +146,7 @@ Partial Class MainForm
         'btnBrowse
         '
         Me.btnBrowse.Anchor = CType((System.Windows.Forms.AnchorStyles.Top Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
-        Me.btnBrowse.Location = New System.Drawing.Point(486, 22)
+        Me.btnBrowse.Location = New System.Drawing.Point(486, 36)
         Me.btnBrowse.Name = "btnBrowse"
         Me.btnBrowse.Size = New System.Drawing.Size(75, 34)
         Me.btnBrowse.TabIndex = 5
@@ -156,29 +164,81 @@ Partial Class MainForm
         Me.btnRip.Text = "Rip"
         Me.btnRip.UseVisualStyleBackColor = True
         '
-        'btnAbout
+        'MenuStrip1
         '
-        Me.btnAbout.Anchor = CType((System.Windows.Forms.AnchorStyles.Bottom Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
-        Me.btnAbout.Location = New System.Drawing.Point(432, 90)
-        Me.btnAbout.Name = "btnAbout"
-        Me.btnAbout.Size = New System.Drawing.Size(129, 34)
-        Me.btnAbout.TabIndex = 7
-        Me.btnAbout.Text = "About"
-        Me.btnAbout.UseVisualStyleBackColor = True
+        Me.MenuStrip1.GripMargin = New System.Windows.Forms.Padding(2, 2, 0, 2)
+        Me.MenuStrip1.ImageScalingSize = New System.Drawing.Size(24, 24)
+        Me.MenuStrip1.Items.AddRange(New System.Windows.Forms.ToolStripItem() {Me.FileToolStripMenuItem, Me.AboutToolStripMenuItem})
+        Me.MenuStrip1.Location = New System.Drawing.Point(0, 0)
+        Me.MenuStrip1.Name = "MenuStrip1"
+        Me.MenuStrip1.Size = New System.Drawing.Size(585, 33)
+        Me.MenuStrip1.TabIndex = 8
+        Me.MenuStrip1.Text = "MenuStrip1"
+        '
+        'FileToolStripMenuItem
+        '
+        Me.FileToolStripMenuItem.DropDownItems.AddRange(New System.Windows.Forms.ToolStripItem() {Me.UpdateSampleRatesToolStripMenuItem, Me.ExitToolStripMenuItem})
+        Me.FileToolStripMenuItem.Name = "FileToolStripMenuItem"
+        Me.FileToolStripMenuItem.Size = New System.Drawing.Size(54, 29)
+        Me.FileToolStripMenuItem.Text = "File"
+        '
+        'UpdateSampleRatesToolStripMenuItem
+        '
+        Me.UpdateSampleRatesToolStripMenuItem.Name = "UpdateSampleRatesToolStripMenuItem"
+        Me.UpdateSampleRatesToolStripMenuItem.Size = New System.Drawing.Size(336, 34)
+        Me.UpdateSampleRatesToolStripMenuItem.Text = "&Update Sample Rate feature"
+        '
+        'ExitToolStripMenuItem
+        '
+        Me.ExitToolStripMenuItem.Name = "ExitToolStripMenuItem"
+        Me.ExitToolStripMenuItem.Size = New System.Drawing.Size(336, 34)
+        Me.ExitToolStripMenuItem.Text = "&Exit"
+        '
+        'AboutToolStripMenuItem
+        '
+        Me.AboutToolStripMenuItem.DropDownItems.AddRange(New System.Windows.Forms.ToolStripItem() {Me.AboutToolStripMenuItem1, Me.WebsiteToolStripMenuItem})
+        Me.AboutToolStripMenuItem.Name = "AboutToolStripMenuItem"
+        Me.AboutToolStripMenuItem.Size = New System.Drawing.Size(78, 29)
+        Me.AboutToolStripMenuItem.Text = "About"
+        '
+        'AboutToolStripMenuItem1
+        '
+        Me.AboutToolStripMenuItem1.Name = "AboutToolStripMenuItem1"
+        Me.AboutToolStripMenuItem1.Size = New System.Drawing.Size(177, 34)
+        Me.AboutToolStripMenuItem1.Text = "About"
+        '
+        'WebsiteToolStripMenuItem
+        '
+        Me.WebsiteToolStripMenuItem.Name = "WebsiteToolStripMenuItem"
+        Me.WebsiteToolStripMenuItem.Size = New System.Drawing.Size(177, 34)
+        Me.WebsiteToolStripMenuItem.Text = "Website"
+        '
+        'btnConvert
+        '
+        Me.btnConvert.Anchor = CType((System.Windows.Forms.AnchorStyles.Bottom Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
+        Me.btnConvert.Enabled = False
+        Me.btnConvert.Location = New System.Drawing.Point(432, 160)
+        Me.btnConvert.Name = "btnConvert"
+        Me.btnConvert.Size = New System.Drawing.Size(129, 34)
+        Me.btnConvert.TabIndex = 9
+        Me.btnConvert.Text = "Convert"
+        Me.btnConvert.UseVisualStyleBackColor = True
         '
         'MainForm
         '
         Me.AutoScaleDimensions = New System.Drawing.SizeF(9.0!, 20.0!)
         Me.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font
         Me.ClientSize = New System.Drawing.Size(585, 299)
-        Me.Controls.Add(Me.btnAbout)
+        Me.Controls.Add(Me.btnConvert)
         Me.Controls.Add(Me.btnRip)
         Me.Controls.Add(Me.btnBrowse)
         Me.Controls.Add(Me.textFilename)
         Me.Controls.Add(Me.GroupBox2)
         Me.Controls.Add(Me.GroupBox1)
         Me.Controls.Add(Me.Label1)
+        Me.Controls.Add(Me.MenuStrip1)
         Me.Icon = CType(resources.GetObject("$this.Icon"), System.Drawing.Icon)
+        Me.MainMenuStrip = Me.MenuStrip1
         Me.MinimumSize = New System.Drawing.Size(485, 355)
         Me.Name = "MainForm"
         Me.Text = "Sound Ripper"
@@ -186,6 +246,8 @@ Partial Class MainForm
         Me.GroupBox1.PerformLayout()
         Me.GroupBox2.ResumeLayout(False)
         Me.GroupBox2.PerformLayout()
+        Me.MenuStrip1.ResumeLayout(False)
+        Me.MenuStrip1.PerformLayout()
         Me.ResumeLayout(False)
         Me.PerformLayout()
 
@@ -202,5 +264,12 @@ Partial Class MainForm
     Friend WithEvents textFilename As Windows.Forms.TextBox
     Friend WithEvents btnBrowse As Windows.Forms.Button
     Friend WithEvents btnRip As Windows.Forms.Button
-    Friend WithEvents btnAbout As Windows.Forms.Button
+    Friend WithEvents MenuStrip1 As Windows.Forms.MenuStrip
+    Friend WithEvents FileToolStripMenuItem As Windows.Forms.ToolStripMenuItem
+    Friend WithEvents UpdateSampleRatesToolStripMenuItem As Windows.Forms.ToolStripMenuItem
+    Friend WithEvents ExitToolStripMenuItem As Windows.Forms.ToolStripMenuItem
+    Friend WithEvents AboutToolStripMenuItem As Windows.Forms.ToolStripMenuItem
+    Friend WithEvents AboutToolStripMenuItem1 As Windows.Forms.ToolStripMenuItem
+    Friend WithEvents WebsiteToolStripMenuItem As Windows.Forms.ToolStripMenuItem
+    Friend WithEvents btnConvert As Windows.Forms.Button
 End Class
