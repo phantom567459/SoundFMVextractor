@@ -59,11 +59,14 @@ Public Class MainForm
             Console.WriteLine(" SoundRipperVB.exe -i {0} -p {1} -v {2}", main.sndfile, main.platform, main.version)
             Dim convertFile As String = main.Rip()
 
-            ' enable the convert button
-            btnConvert.Tag = convertFile
-            Dim tip As New ToolTip()
-            tip.SetToolTip(btnConvert, "Run batch file: " & convertFile)
-            btnConvert.Enabled = True
+            If convertFile IsNot Nothing Then
+                ' enable the convert button
+                btnConvert.Tag = convertFile
+                Dim tip As New ToolTip()
+                tip.SetToolTip(btnConvert, "Run batch file: " & convertFile)
+                btnConvert.Enabled = True
+            End If
+            labelStatus.Text = "Done Ripping file " + textFilename.Text
         End If
     End Sub
 

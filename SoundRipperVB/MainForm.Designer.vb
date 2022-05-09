@@ -42,6 +42,7 @@ Partial Class MainForm
         Me.AboutToolStripMenuItem1 = New System.Windows.Forms.ToolStripMenuItem()
         Me.WebsiteToolStripMenuItem = New System.Windows.Forms.ToolStripMenuItem()
         Me.btnConvert = New System.Windows.Forms.Button()
+        Me.labelStatus = New System.Windows.Forms.Label()
         Me.GroupBox1.SuspendLayout()
         Me.GroupBox2.SuspendLayout()
         Me.MenuStrip1.SuspendLayout()
@@ -146,7 +147,7 @@ Partial Class MainForm
         'btnBrowse
         '
         Me.btnBrowse.Anchor = CType((System.Windows.Forms.AnchorStyles.Top Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
-        Me.btnBrowse.Location = New System.Drawing.Point(486, 36)
+        Me.btnBrowse.Location = New System.Drawing.Point(486, 43)
         Me.btnBrowse.Name = "btnBrowse"
         Me.btnBrowse.Size = New System.Drawing.Size(75, 34)
         Me.btnBrowse.TabIndex = 5
@@ -157,7 +158,7 @@ Partial Class MainForm
         'btnRip
         '
         Me.btnRip.Anchor = CType((System.Windows.Forms.AnchorStyles.Bottom Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
-        Me.btnRip.Location = New System.Drawing.Point(432, 215)
+        Me.btnRip.Location = New System.Drawing.Point(432, 225)
         Me.btnRip.Name = "btnRip"
         Me.btnRip.Size = New System.Drawing.Size(129, 59)
         Me.btnRip.TabIndex = 6
@@ -166,7 +167,6 @@ Partial Class MainForm
         '
         'MenuStrip1
         '
-        Me.MenuStrip1.GripMargin = New System.Windows.Forms.Padding(2, 2, 0, 2)
         Me.MenuStrip1.ImageScalingSize = New System.Drawing.Size(24, 24)
         Me.MenuStrip1.Items.AddRange(New System.Windows.Forms.ToolStripItem() {Me.FileToolStripMenuItem, Me.AboutToolStripMenuItem})
         Me.MenuStrip1.Location = New System.Drawing.Point(0, 0)
@@ -185,13 +185,13 @@ Partial Class MainForm
         'UpdateSampleRatesToolStripMenuItem
         '
         Me.UpdateSampleRatesToolStripMenuItem.Name = "UpdateSampleRatesToolStripMenuItem"
-        Me.UpdateSampleRatesToolStripMenuItem.Size = New System.Drawing.Size(336, 34)
-        Me.UpdateSampleRatesToolStripMenuItem.Text = "&Update Sample Rate feature"
+        Me.UpdateSampleRatesToolStripMenuItem.Size = New System.Drawing.Size(284, 34)
+        Me.UpdateSampleRatesToolStripMenuItem.Text = "&Update Sample Rates"
         '
         'ExitToolStripMenuItem
         '
         Me.ExitToolStripMenuItem.Name = "ExitToolStripMenuItem"
-        Me.ExitToolStripMenuItem.Size = New System.Drawing.Size(336, 34)
+        Me.ExitToolStripMenuItem.Size = New System.Drawing.Size(284, 34)
         Me.ExitToolStripMenuItem.Text = "&Exit"
         '
         'AboutToolStripMenuItem
@@ -217,18 +217,28 @@ Partial Class MainForm
         '
         Me.btnConvert.Anchor = CType((System.Windows.Forms.AnchorStyles.Bottom Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
         Me.btnConvert.Enabled = False
-        Me.btnConvert.Location = New System.Drawing.Point(432, 160)
+        Me.btnConvert.Location = New System.Drawing.Point(432, 170)
         Me.btnConvert.Name = "btnConvert"
         Me.btnConvert.Size = New System.Drawing.Size(129, 34)
         Me.btnConvert.TabIndex = 9
         Me.btnConvert.Text = "Convert"
         Me.btnConvert.UseVisualStyleBackColor = True
         '
+        'labelStatus
+        '
+        Me.labelStatus.Anchor = CType((System.Windows.Forms.AnchorStyles.Bottom Or System.Windows.Forms.AnchorStyles.Left), System.Windows.Forms.AnchorStyles)
+        Me.labelStatus.AutoSize = True
+        Me.labelStatus.Location = New System.Drawing.Point(12, 295)
+        Me.labelStatus.Name = "labelStatus"
+        Me.labelStatus.Size = New System.Drawing.Size(0, 20)
+        Me.labelStatus.TabIndex = 10
+        '
         'MainForm
         '
         Me.AutoScaleDimensions = New System.Drawing.SizeF(9.0!, 20.0!)
         Me.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font
-        Me.ClientSize = New System.Drawing.Size(585, 299)
+        Me.ClientSize = New System.Drawing.Size(585, 324)
+        Me.Controls.Add(Me.labelStatus)
         Me.Controls.Add(Me.btnConvert)
         Me.Controls.Add(Me.btnRip)
         Me.Controls.Add(Me.btnBrowse)
@@ -272,4 +282,5 @@ Partial Class MainForm
     Friend WithEvents AboutToolStripMenuItem1 As Windows.Forms.ToolStripMenuItem
     Friend WithEvents WebsiteToolStripMenuItem As Windows.Forms.ToolStripMenuItem
     Friend WithEvents btnConvert As Windows.Forms.Button
+    Friend WithEvents labelStatus As Windows.Forms.Label
 End Class

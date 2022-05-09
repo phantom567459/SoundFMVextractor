@@ -1,15 +1,17 @@
 # SoundRipperVB
 For extracting sounds and FMV from Pandemic's SWBF and The Clone Wars games
 
-Run from the command line.  Sound files are in .lvl or .bnk format, and are located in Gamedata\Data\_LVL_platform\Sound\. For TCW PS2, file names are .msh/msb.  Both are accepted, the program figures out what it needs.
+Run from the command line or double click to open the GUI. Sound files are in .lvl or .bnk format, and are located in Gamedata\Data\_LVL_platform\Sound\. For TCW PS2, file names are .msh/msb.  Both are accepted, the program figures out what it needs.
 
 This also works on FMVs for PC/PS2/XBOX.  All FMVs are located in Gamedata\Data\_LVL_platform\Movies.
 
 Format for usage:
 
+```cmd
 SoundRipperVB.exe -i *filename* -p *pc/ps2/xbox* -v *bf1/bf2/tcw*
+```
 
-replace filename with your file, e.g. common.bnk
+replace filename with your file, e.g. common.bnk, cor.lvl ...
 
 All PC sounds are in .wav format.  Sounds in .bnk files are in native PCM16, and all others that I have found are IMA ADPCM format (4:1 compression of .wav).  Xbox is slightly different (all in Xbox ADPCM, which is almost exactly the same as IMA ADPCM).
 All movies on PC are in BIK format, PS2 is PSS, and Xbox is XMV.
@@ -21,14 +23,17 @@ This program has a 'dictionary.txt' file containing the 'known' filenames which 
 To play these files, the current option is to use VLC Media Player, which can support all of these files, except PS2 VAG format.
 If you wish to munge these files back into the game, you must convert them (except for common.bnk) back to PCM16 through ffmpeg (here: https://www.ffmpeg.org/download.html).  For now, use:
 
+```cmd
 ffmpeg -i *inputfile* *outputfile*
-
+```
 If you need more options, the format you want to output to is pcm_s16le.  All the other relevant information should be in the header and caught by ffmpeg.
 
 For larger jobs, FFMpeg Batch is absolutely amazing, and includes a GUI.
 
 Default is pc/bf1.  
 If you wish to extract and use .pss movie files, you will need to research PSS demuxing and converting.  This is beyond the scope of this program.
+
+Update 5/8/2022 - Added GUI, 'Update sample rates' feature, extracting movie names, fixed .vag headers to reflect sample actual rate.
 
 Update 6/6/2021  - Sound extract Bug fixes (still has some issues with extracting ambient on BF2 PC & Xbox)
 
@@ -42,12 +47,11 @@ Update 10/22/2019 - fixed most PS2 VAG extraction, PSS extraction complete, Xbox
 
 Update 10/11/2019 - added janky PS2 VAG functionality and -p (for platform) command line option.  Please use ffmpeg as above to convert VAG to PCM16
 
-This is a WIP and does not extract some sounds correctly. Please file an issue and be specific on what file is not working and platform.
+This is a WIP and may not extract some sounds correctly. Please file an issue and be specific on what file is not working and platform.
 
 Issues:
-1.) Better support for planet sound lvls on console (and somewhat on PC) (.st4 currently broken)
-2.) PS2 dual channel music (may not fix)
-3.) Better xmv support
+1. Better support for planet sound lvls on console (and somewhat on PC)
+2. PS2 dual channel music, .st4 (quadraphonic) files rip as interleaved sound data.
 
 Credits:
 Dark_Phantom - creator
@@ -56,7 +60,7 @@ psych0fred - help with file formats and file comparisons and FilenameHashes.csv 
 
 Sleepkiller - programming help, file formats, code contributions
 
-BAD_AL - HashHelper.vb & sound extract bug fix.
+BAD_AL - HashHelper.vb & sound extract bug fix, vag header fix, update sample rate feature, GUI, movie names.
 
 SWBFgamers.com - for their amazing community and contributions toward SWBF1
 
