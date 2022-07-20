@@ -1,14 +1,24 @@
 ﻿Imports System.IO
 Imports System.Text
+Imports System.Windows.Forms
 
 ' wav reference:
 ' http://soundfile.sapp.org/doc/WaveFormat/
+'vag reference
+'https://wiki.xentax.com/index.php/VAG_Audio
 
 Module main
 
     'globals
     Dim addlinetoprojectlog As String
     Dim databankcount As Integer
+    Dim logFile As String = "log.txt"
+    Public sndfile As String ' = "shell.lvl" 'lvl to extract sound/fmv
+    Public platform As String = "pc" 'pc/ps2/xbox
+    Public version As String = "bf1" 'bf1/bf2
+    Public applySampleRates As Boolean = False
+    Public SoundFolderToUpdateSampleRate As String = ""
+    Public logOnly As Boolean = False
 
     'Header for str files:
     'emo_ (stream head followed by size of files in bank)
@@ -56,10 +66,10 @@ Module main
 
 
                     'Logging
-                    addlinetoprojectlog = strDataWrap & " data found at byte: " & i & " Size: " & wrapSize & vbCr
-                    'addlinetoprojectlog = "Wrap data found at byte: " & i + 8 & " Size: " & wrapSize & vbCr
-                    addlinetoprojectlog = String.Format("Wrap data found at byte: 0x{0:x}  Size: {1}", i + 8, wrapSize) & vbCr
-                    UpdateProjectLog(addlinetoprojectlog)
+                    addlinetoprojectlog = strDataWrap & " data found at byte: " & i & " Size: " & wrapSize
+                    'addlinetoprojectlog = "Wrap data found at byte: " & i + 8 & " Size: " & wrapSize 
+                    addlinetoprojectlog = String.Format("Wrap data found at byte: 0x{0:x}  Size: {1}", i + 8, wrapSize)
+                    AddLineToFile(logFile, addlinetoprojectlog)
 
                     'I hope there's only one bank.  Oh wait, there isn't.  I had to rewrite this function at one point
 
@@ -188,21 +198,49 @@ Module main
             'Generate bik header
             Return 0
         ElseIf HeaderType = "vag" Or HeaderType = "tcwvag" Then
-            'Generate wav header
-            Dim wavHeader2, wavheader3 As Byte()
+            'Generate vag header
+            'https://wiki.xentax.com/index.php/VAG_Audio
+            Dim wavHeader1 As Byte() = {
+                86, 65, 71, 112, ' VAGP (magic)
+                0, 0, 0, 2,      ' [format version]
+                0, 0, 0, 0,      ' source start offset // always "0"
+                0, 0, 24, 144,   ' waveform data size  // will overwrite this below
+                0, 0, 86, 34,    ' sample rate (Hz)    // will overwrite this below
+                255, 255,        ' base volume for left channel
+                255, 255,        ' base volume for right channel
+                0, 16,           ' base pitch (includes fs modulation)
+                0, 0,            ' base ADSR1
+                0, 0,            ' base ADSR2
+                0, 0}            ' reserved
+            Dim wavHeader2 As Byte() = {  ' for the track name. 16 bytes long (version 2)
+                0, 0, 0, 0,
+                0, 0, 0, 0,
+                0, 0, 0, 0,
+                0, 0, 0, 0}
+            ' fill in Data Size
+            Dim dataSize As Byte() = BitConverter.GetBytes(Size)
+            wavHeader1(12) = dataSize(3)
+            wavHeader1(13) = dataSize(2)
+            wavHeader1(14) = dataSize(1)
+            wavHeader1(15) = dataSize(0)
 
-            'Dim factSize As Byte() = BitConverter.GetBytes(resampleSize)
+            ' fill in sample rate  (4 bytes)
+            Dim sampleBytes As Byte() = BitConverter.GetBytes(SampleRate)
+            wavHeader1(16) = sampleBytes(3)
+            wavHeader1(17) = sampleBytes(2)
+            wavHeader1(18) = sampleBytes(1)
+            wavHeader1(19) = sampleBytes(0)
 
-            'VB doesn't like byte() to byte, so we're just going to eat up more memory here and make more variables
-            Dim wavHeader As Byte() = {86, 65, 71, 112, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 24, 144, 0, 0, 86, 34, 255, 255, 255, 255, 0, 16, 0, 0, 0, 0, 0, 0} ', VAG, then file name
-            wavHeader2 = {65, 73, 67, 79, 77, 50, 48, 52}
-            wavheader3 = {46, 118, 97, 103, 0, 0, 0, 0}
+            'Fill out track name
+            Dim trackName As String = Name
+            If trackName.Length > 16 Then
+                trackName = Name.Substring(0, 16)
+            End If
+            For index = 0 To trackName.Length - 1
+                wavHeader2(index) = Convert.ToByte(trackName.Chars(index))
+            Next
 
-            Dim filename As String = Name
-
-            'rawr concatentation - RIP readability
-            'Dim totalHeader As Byte() = wavHeader.Concat(Name).Concat(wavHeader2)
-            Dim totalHeader As Byte() = wavHeader.Concat(wavHeader2).Concat(wavheader3).ToArray()
+            Dim totalHeader As Byte() = wavHeader1.Concat(wavHeader2).ToArray()
 
             Return totalHeader 'return byte array
         Else
@@ -211,85 +249,92 @@ Module main
         End If
     End Function
 
-    Sub UpdateProjectLog(ByVal projlog As String)
-        'this updates the project log.  new log is generated on run
-        Dim file As System.IO.StreamWriter
-        file = My.Computer.FileSystem.OpenTextFileWriter("log.txt", True)
-        file.Write(projlog)
-        file.Close()
+    ' Initializes the file passed in. If there's an exception it'll Sleep(100) and try again 
+    Sub InitFile(ByVal filename As String)
+        Console.WriteLine("Initializing file: '{0}'", filename)
+        Dim written As Boolean = False
+        While written = False
+            Try
+                Dim file As System.IO.StreamWriter
+                file = My.Computer.FileSystem.OpenTextFileWriter(filename, False)
+                file.Write("")
+                file.Close()
+                written = True
+            Catch ex As Exception
+                Console.WriteLine("Caught exception while initializing '{0}' {1}; Sleep(100) & try again... ", filename, ex.Message)
+                System.Threading.Thread.Sleep(100)
+            End Try
+        End While
+
     End Sub
-    Public Sub Main()
 
-#Region "CommandLineParameters"
-        'Get the values of the command line in an array
-        ' Index  Discription
-        ' 0      Full path of executing prograsm with program name
-        ' 1      First switch in command in your example -t
-        ' 2      First value in command in your example text1
-        ' 3      Second switch in command in your example -s
-        ' 4      Second value in command in your example text2
-        Dim clArgs() As String = Environment.GetCommandLineArgs()
-        Dim sndfile As String ' = "shell.lvl" 'lvl to extract sound/fmv
-        Dim platform As String = "pc" 'pc/ps2/xbox
-        Dim version As String = "bf1" 'bf1/bf2
-        ' Hold the command line values
-        ' Dim type As String = String.Empty
-        ' Test to see if two switchs and two values were passed in
-        ' if yes parse the array
-        If clArgs.Count() > 2 Then
-            If clArgs(1) = "-i" Then
-                sndfile = clArgs(2).ToLower()
-                If sndfile = Nothing Then
-                    Console.WriteLine("You didn't enter a file")
-                    Exit Sub
-                End If
-                If Not My.Computer.FileSystem.FileExists(sndfile) Then
-                    Console.WriteLine("File does not exist.  Please make sure you have the file name with extension (e.g. shell.lvl)")
-                    Exit Sub
-                End If
-            Else
-                Console.WriteLine("Please enter the correct argument")
-                Exit Sub
-            End If
+    ' Appends text to the given file. If there's an exception, it'll Sleep(100) and try again.
+    Sub AddLineToFile(ByVal filename As String, ByVal newData As String)
+        'this updates the project log.  new log is generated on run
+        Dim written As Boolean = False
+        While written = False
+            Try
+                Dim file As System.IO.StreamWriter
+                file = My.Computer.FileSystem.OpenTextFileWriter(filename, True)
+                file.Write(newData)
+                file.Write(vbCrLf)
+                file.Close()
+                written = True
+            Catch ex As Exception
+                Console.WriteLine("Caught exception while updating '{0}' {1}; Sleep(100) & try again... ", logFile, ex.Message)
+                System.Threading.Thread.Sleep(100)
+            End Try
+        End While
+    End Sub
 
-            If clArgs.Count > 4 Then
-                If clArgs(3) = "-p" Then
-                    platform = clArgs(4).ToLower()
-                    If platform <> "pc" And platform <> "ps2" And platform <> "xbox" Then
-                        Console.WriteLine("Please select a valid platform: pc, ps2, xbox")
-                        Exit Sub
-                    End If
-                ElseIf clArgs(3) = "-v" Then
-                    version = clArgs(4).ToLower()
-                    If version <> "bf1" And version <> "bf2" And version <> "tcw" Then
-                        Console.WriteLine("Please select a valid game: bf1, bf2, tcw")
-                        Exit Sub
-                    End If
-                Else
-                    Console.WriteLine("Please enter the correct argument")
-                    Exit Sub
-                End If
+    Public Sub ProcessArgs(ByVal args As String())
+        For i As Int16 = 0 To args.Length - 1
+            If args(i) = "-i" And args.Length > i + 1 Then
+                sndfile = args(i + 1)
+                i = i + 1
+            ElseIf args(i) = "-p" And args.Length > i + 1 Then
+                platform = args(i + 1).ToLower()
+                i = i + 1
+            ElseIf args(i) = "-v" And args.Length > i + 1 Then
+                version = args(i + 1).ToLower()
+                i = i + 1
+            ElseIf args(i) = "-applySampleRate" And args.Length > i + 1 Then
+                applySampleRates = True
+                SoundFolderToUpdateSampleRate = args(i + 1)
+            ElseIf args(i) = "-log_only" Then
+                logOnly = True
             End If
+        Next
+    End Sub
 
-            If clArgs.Count > 6 Then
-                If clArgs(5) = "-v" Then
-                    version = clArgs(6).ToLower()
-                    If version <> "bf1" And version <> "bf2" And version <> "tcw" Then
-                        Console.WriteLine("Please select a valid game: bf1, bf2, tcw")
-                        Exit Sub
-                    End If
-                Else
-                    Console.WriteLine("Please enter the correct argument")
-                    Exit Sub
-                End If
-            End If
-        Else
-            Console.WriteLine("
+    Private Function ParamsAreValid()
+        Dim retVal As Boolean = True
+        Dim platforms As String() = {"pc", "ps2", "xbox"}
+        Dim versions As String() = {"bf1", "bf2"}
+        If Not platforms.Contains(platform.ToLower()) Then
+            Console.WriteLine("Invalid Platform '{0}'", platform)
+            retVal = False
+        ElseIf Not versions.Contains(version.ToLower()) Then
+            Console.WriteLine("Invalid Version '{0}'", version)
+            retVal = False
+        ElseIf Not File.Exists(sndfile) Then
+            Console.WriteLine("File does not exist: '{0}'", sndfile)
+            retVal = False
+        ElseIf applySampleRates And Not File.Exists(SoundFolderToUpdateSampleRate) And Not Directory.Exists(SoundFolderToUpdateSampleRate) Then
+            Console.WriteLine("File does not exist: '{0}'", SoundFolderToUpdateSampleRate)
+            retVal = False
+        End If
+        Return retVal
+    End Function
+
+    Private Sub PrintHelp()
+        Console.WriteLine("
 This program was designed to extract raw sound and full motion videos from Pandemic's BF1 and BF2 and The Clone Wars.
 Options are -i *filename* -p *pc/ps2/xbox* -v *bf1/bf2/tcw* currently
-All switches must be in order -i -p -v, but only i is required.  Defaults are pc and bf1.
+Option -i <filename> is required.  Defaults are pc and bf1.
 
-Use Example: SoundRipperVB.exe -i cw.lvl -p ps2 -v bf1
+Command line use Example: SoundRipperVB.exe -i cw.lvl -p ps2 -v bf1
+
 
 To convert extracted sound files into a usable sound format use 'ffmpeg.exe' like this:
 
@@ -298,40 +343,52 @@ To convert extracted sound files into a usable sound format use 'ffmpeg.exe' lik
 You can download binary releases of 'ffmpeg.exe' at https://github.com/BtbN/FFmpeg-Builds/releases
 
 Please read the included readme for various file extraction types")
-
-
-            Exit Sub
+    End Sub
+    Public Sub Main(ByVal args As String())
+        ProcessArgs(args)
+        If args.Length = 0 Then
+            'Show GUI
+            Application.EnableVisualStyles()
+            Application.SetCompatibleTextRenderingDefault(False)
+            Application.Run(New MainForm())
+        ElseIf args(0).ToLower().StartsWith("-h") Or Not ParamsAreValid() Then
+            PrintHelp()
+        ElseIf applySampleRates Then
+            Dim rates As Dictionary(Of String, SampleRateMapping) = New Dictionary(Of String, SampleRateMapping)
+            SampleRateHelper.GetSampleRates(sndfile, rates)
+            SampleRateHelper.ApplySampleRatesToFiles(SoundFolderToUpdateSampleRate, rates, True, False)
+        Else
+            Rip()
         End If
-        'Next
-        'End If
-
-        ' Console.WriteLine(type)
-        ' Console.ReadLine()
-#End Region
-
-
+    End Sub
+    ''' <summary>
+    ''' Rips the file set up 
+    ''' </summary>
+    ''' <returns>Returns the 'Convert to pcm' batch file path</returns>
+    Public Function Rip() As String
 #Region "Body"
 #Region "variables"
-        System.IO.File.WriteAllText("log.txt", "")
-        addlinetoprojectlog = "Parsing " & sndfile & " for " & platform & vbCr
-        UpdateProjectLog(addlinetoprojectlog)
+        Dim sampleRateSpecified As Int32
+        Dim currentBank As Int32 = 1
 
-
+        logFile = sndfile + ".log"
+        InitFile(logFile)
+        addlinetoprojectlog = "Parsing " & sndfile & " for " & platform
+        AddLineToFile(logFile, addlinetoprojectlog)
 
         'Credit Sleepkiller for Dictionary
         Dim wavtype, filelistext As String
         Dim filetype As String = sndfile.Substring(sndfile.Length - 4).ToLower()
         Dim sndfilewoext As String = sndfile.Substring(0, sndfile.Length - 4) 'sound file without extension
-        System.IO.File.WriteAllText(sndfilewoext & ".sfx", "")
 
         'TCW - default file
         If filetype = ".msb" Then
             filetype = ".msh"
             sndfile = sndfile.Substring(0, sndfile.Length - 4) & ".msh"
-            UpdateProjectLog("Corrected msb to msh for " & sndfile)
+            AddLineToFile(logFile, "Corrected msb to msh for " & sndfile)
         End If
 
-        UpdateProjectLog("Filetype " & filetype & vbCr)
+        AddLineToFile(logFile, "Filetype " & filetype)
         'This code is pretty arbitrary with what it picks for the dissection type.  It's good enough for now
         If filetype = ".lvl" Or filetype = ".str" Then
             If platform = "ps2" Then
@@ -405,6 +462,11 @@ Please read the included readme for various file extraction types")
 
         Console.WriteLine("Processing file: " & sndfile)
 
+        If filetype = ".lvl" Or filetype = ".str" Then
+            InitFile(sndfilewoext & ".sfx") ' initialize sfx file
+        End If
+        InitFile(sndfilewoext & filelistext) ' initialize stm/mlst file
+
         'dataPosition for later, not needed for bik since they are stored with their header intact
         If wavtype <> "bik" And wavtype <> "tcwvag" Then
             savePosition = FindDataStart(sndfile, dataWrapper)
@@ -415,18 +477,22 @@ Please read the included readme for various file extraction types")
         If (Not System.IO.Directory.Exists(sndfilewoext)) Then
             My.Computer.FileSystem.CreateDirectory(sndfilewoext)
         End If
-        Dim b() As Byte = IO.File.ReadAllBytes(sndfile) 'read file as array of bytes 
+        Dim fileBytes() As Byte = IO.File.ReadAllBytes(sndfile) 'read file as array of bytes 
         Dim fs As New IO.FileStream(sndfile, IO.FileMode.Open)
         Dim binary_reader As New IO.BinaryReader(fs)
+        Dim movieNames As List(Of String) = Nothing
+        If filelistext = ".mlst" Then
+            movieNames = HashHelper.ReadNames(fileBytes)
+        End If
 
 #End Region
         If wavtype = "bik" Then
 #Region "PC Movie File"
-            For i As Integer = 0 To b.Length - SearchStart.Length - 1
-                If b(i) = SearchStart(0) Then
+            For i As Integer = 0 To fileBytes.Length - SearchStart.Length - 1
+                If fileBytes(i) = SearchStart(0) Then
                     bFound = True
                     For j As Integer = 0 To SearchStart.Length - 1
-                        If b(i + j) <> SearchStart(j) Then
+                        If fileBytes(i + j) <> SearchStart(j) Then
                             bFound = False
                             Exit For
                         End If
@@ -436,9 +502,8 @@ Please read the included readme for various file extraction types")
                         'bugfix created 2/4/20 - shell.mvs BF1 gave a false positive in one video, generating an outlandish garbage file.
                         fs.Position = i - 1
                         If binary_reader.ReadByte() <> 0 And fileCounter > 0 Then
-                            UpdateProjectLog("False Positive" & vbCr)
+                            AddLineToFile(logFile, "False Positive")
                         Else
-
                             fileCounter += 1 'start at 1, count up
                             'Read size of bik, convert to Uint32
                             fs.Position = i + 4
@@ -450,10 +515,17 @@ Please read the included readme for various file extraction types")
                             fs.Position = i
                             bytedata = binary_reader.ReadBytes(wavSize)
 
-                            addlinetoprojectlog = wavtype & " video header found at byte: " & i & " Size: " & wavSize & vbCr
-                            UpdateProjectLog(addlinetoprojectlog)
+                            addlinetoprojectlog = wavtype & " video header found at byte: " & i & " Size: " & wavSize
+                            AddLineToFile(logFile, addlinetoprojectlog)
+                            Dim movieName = "movie" & fileCounter
+                            If movieNames.Count > 0 Then
+                                movieName = movieNames(0)
+                                movieNames.RemoveAt(0)
+                            End If
 
-                            wavname = sndfile.Substring(0, sndfile.Length - 4) & "\movie" + fileCounter.ToString() + "." + wavtype
+                            wavname = sndfile.Substring(0, sndfile.Length - 4) & "\" + movieName & "." & wavtype
+                            AddLineToFile(logFile, "Saving File " & wavname)
+                            AddLineToFile(sndfilewoext & ".mlst", wavname)
 
                             'write said file
                             My.Computer.FileSystem.WriteAllBytes(wavname, bytedata, False)
@@ -467,11 +539,11 @@ Please read the included readme for various file extraction types")
 #End Region
 #Region "TCW Files"
         ElseIf wavtype = "tcwvag" Then
-            For i As Integer = 0 To b.Length - SearchStart.Length - 1 'if it doesn't find searchstart, keep going
-                If b(i) = SearchStart(0) Then
+            For i As Integer = 0 To fileBytes.Length - SearchStart.Length - 1 'if it doesn't find searchstart, keep going
+                If fileBytes(i) = SearchStart(0) Then
                     bFound = True
                     For j As Integer = 0 To SearchStart.Length - 1
-                        If b(i + j) <> SearchStart(j) Then
+                        If fileBytes(i + j) <> SearchStart(j) Then
                             bFound = False
                             Exit For
                         End If
@@ -489,13 +561,13 @@ Please read the included readme for various file extraction types")
                         ReDim Preserve savePosition(fileCounter)
                         savePosition(fileCounter) = BitConverter.ToUInt32(binary_reader.ReadBytes(4), 0) 'i got lazy And combined the two things up above
 
-                        UpdateProjectLog(String.Format("Data start at byte 0x{0:x} for file {1}" & vbCr, savePosition(fileCounter), fileCounter))
-                        'UpdateProjectLog("Data start at byte " & savePosition(fileCounter) & " for file " & fileCounter & vbCr)
+                        AddLineToFile(logFile, String.Format("Data start at byte 0x{0:x} for file {1}", savePosition(fileCounter), fileCounter))
+                        'UpdateFile(logFile,"Data start at byte " & savePosition(fileCounter) & " for file " & fileCounter )
 
 
-                        'addlinetoprojectlog = wavtype & " header found at byte: " & i & " Size: " & wavSize & vbCr
-                        addlinetoprojectlog = String.Format("{0} header found at byte: 0x{1:x} Size: {2}", wavtype, i, wavSize) & vbCr
-                        UpdateProjectLog(addlinetoprojectlog)
+                        'addlinetoprojectlog = wavtype & " header found at byte: " & i & " Size: " & wavSize 
+                        addlinetoprojectlog = String.Format("{0} header found at byte: 0x{1:x} Size: {2}", wavtype, i, wavSize)
+                        AddLineToFile(logFile, addlinetoprojectlog)
 
                         'Future me: Please fix this, I'm tired and this is really, really not efficient. 1/21/20
                         'I would prefer array storage of the values (opening each file only once), but that really doesn't fit in the current framework. Gonna have to rewrite some stuff
@@ -538,11 +610,11 @@ Please read the included readme for various file extraction types")
 #End Region
         Else
 #Region "Sound Code (And pss)"
-            For i As Integer = 0 To b.Length - SearchStart.Length - 1 'if it doesn't find searchstart, keep going
-                If b(i) = SearchStart(0) Then
+            For i As Integer = 0 To fileBytes.Length - SearchStart.Length - 1 'if it doesn't find searchstart, keep going
+                If fileBytes(i) = SearchStart(0) Then
                     bFound = True
                     For j As Integer = 0 To SearchStart.Length - 1
-                        If b(i + j) <> SearchStart(j) Then
+                        If fileBytes(i + j) <> SearchStart(j) Then
                             bFound = False
                             Exit For
                         End If
@@ -562,14 +634,15 @@ Please read the included readme for various file extraction types")
                             channelbyte = binary_reader.ReadBytes(2) 'ushort
                             channel = BitConverter.ToUInt16(channelbyte, 0)
 
-                            UpdateProjectLog(wavinbankint & " " & wavtype & " in bank at " & i & " Num channels: " & channel & vbCr)
+                            AddLineToFile(logFile, wavinbankint & " " & wavtype & " in bank at " & i & " Num channels: " & channel)
                         Else
 
                             'Read samplerate, convert to uint32
                             If wavtype <> "pss" And wavtype <> "xmv" Then
                                 fs.Position = i - 4
                                 sampleByte = binary_reader.ReadBytes(4)
-                                sampleRate = BitConverter.ToUInt32(sampleByte, 0)
+                                sampleRateSpecified = BitConverter.ToUInt32(sampleByte, 0)
+                                sampleRate = RoundSampleRate(sampleRateSpecified)
                             End If
 
                             'Read size of wave, convert to Uint32
@@ -580,13 +653,21 @@ Please read the included readme for various file extraction types")
                             'ghetto byte storage for reverse hash
                             fs.Position = i - 12
                             nameHash = binary_reader.ReadUInt32()
+                            If movieNames IsNot Nothing Then
+                                extractedname = "movie" & overallcounter
+                                If movieNames.Count > 0 Then
+                                    extractedname = movieNames(0)
+                                    movieNames.RemoveAt(0)
+                                End If
+                            Else
+                                extractedname = HashHelper.GetStringFromHash(nameHash)
+                            End If
 
-                            extractedname = HashHelper.GetStringFromHash(nameHash)
                             If String.IsNullOrEmpty(extractedname) Then
                                 extractedname = Hex(nameHash)
                             End If
 
-                            UpdateProjectLog("Name: " & extractedname & vbCr)
+                            AddLineToFile(logFile, "Name: " & extractedname)
 
                             Dim skip As Boolean = False
                             ' 2 values seem to tell us if we should skip the sound entry.
@@ -612,19 +693,14 @@ Please read the included readme for various file extraction types")
                                 End If
                             End If
 
-                            'Read raw data
-                            'If wavtype = "xmv" Then
-                            'fs.Position = savePosition(pos) - 12 'xobX twelve after start
-                            'Else
                             fs.Position = savePosition(pos)
-                            'End If
 
                             If wavtype = "pss" And overallcounter > 1 Then
                                 fs.Position += 2044 'buffer for pss files
                             ElseIf (wavtype = "wavIPCM" Or (wavtype = "wavxPCM" And channel <= 2)) And overallcounter > 1 Then 'not in bnk?  .lvl aligned by block size
                                 'This mess above accounts for PC compressed streams AND xbox compressed streams (and discounts the ones that aren't streams because of channel)
                                 Dim blocksize = 2048  'defined in req
-                                'UpdateProjectLog(((savePosition(pos) + wavSize) Mod blocksize) & vbCr)  'reactivate if block size seems goofy
+                                'UpdateFile(logFile,((savePosition(pos) + wavSize) Mod blocksize) )  'reactivate if block size seems goofy
                                 If ((savePosition(pos) + wavSize) Mod blocksize) <> 0 Then
                                     'if a file falls right on a multiple of 2048, we don't run this code.  Think about it 2048 - (2048Mod2048) or 0 = 2048, arbitrarily adding 2048 bytes when not needed.
                                     wavSize += (blocksize - ((savePosition(pos) + wavSize) Mod blocksize))
@@ -641,30 +717,29 @@ Please read the included readme for various file extraction types")
                                     Dim msg As String = String.Format(
                                             "Attempt to read past the end of the data:0x{0:x8}, length:0x{1:x8} bytes on '{2}'",
                                             (fs.Position + wavSize), binary_reader.BaseStream.Length, extractedname)
-                                    UpdateProjectLog(msg)
+                                    AddLineToFile(logFile, msg)
                                     Console.WriteLine(msg)
-                                    Return
+                                    Return Nothing
                                 End If
-                                UpdateProjectLog(String.Format("Data start at byte 0x{0:x} for file {1}" & vbCr, fs.Position, overallcounter))
-                                'UpdateProjectLog("Data start at byte " & fs.Position & " for file " & overallcounter & vbCr)
+                                AddLineToFile(logFile, String.Format("Data start at byte 0x{0:x}, for file {1}", fs.Position, overallcounter))
                                 bytedata = binary_reader.ReadBytes(wavSize) 'read wav data
                                 savePosition(pos) = fs.Position 'save position in wav for later
-                                'addlinetoprojectlog = wavtype & " header found at byte: " & i & " Size: " & wavSize & " Sample Rate: " & sampleRate & vbCr
-                                addlinetoprojectlog = String.Format("{0} header found at byte: 0x{1:x}  Size: {2}  Sample Rate: {3} ", wavtype, i, wavSize, sampleRate) & vbCr
-                                UpdateProjectLog(addlinetoprojectlog)
+                                addlinetoprojectlog = String.Format("{0} header found at byte: 0x{1:x}  Size: {2}  Sample Rate: {3} Name: {4}",
+                                                                    wavtype, i, wavSize, sampleRate, extractedname)
+                                AddLineToFile(logFile, addlinetoprojectlog)
                             Else
                                 bytedata = {}
-                                UpdateProjectLog(String.Format("I think we need to skip this one: {0}", extractedname) & vbCr)
+                                AddLineToFile(logFile, String.Format("I think we need to skip this one: {0}", extractedname))
                             End If
 
                             'file generator code
                             'PSS and XMV do not need a header
                             If wavtype = "pss" Then
                                 newWavFile = bytedata
-                                wavname = sndfilewoext & "\ps2movie" + overallcounter.ToString() + ".pss"
+                                wavname = sndfilewoext & "\" + extractedname + ".pss"
                             ElseIf wavtype = "xmv" Then
                                 newWavFile = bytedata
-                                wavname = sndfilewoext & "\xboxmovie" + overallcounter.ToString() + ".xmv"
+                                wavname = sndfilewoext & "\" + extractedname + ".xmv"
                             Else
                                 header = AddHeader(wavtype, wavSize, sampleRate, channel, extractedname) 'I pass extracted name through but may ignore it because it doesn't matter for vag...
                                 newWavFile = header.Concat(bytedata).ToArray()
@@ -675,26 +750,36 @@ Please read the included readme for various file extraction types")
                                 End If
                             End If
 
-                            'Useless code, dupes are weird.
-                            'If (System.IO.File.Exists(wavname)) Then
-                            'If (wavtype = "wavIPCM" Or wavtype = "wavxPCM") Then
-                            'wavname = wavname.Substring(0, wavname.Length - 4) + overallcounter.ToString() + ".wav"
-                            'Else
-                            'wavname = wavname.Substring(0, wavname.Length - 4) + overallcounter.ToString() + "." + wavtype
-                            'End If
-                            'End If
-                            'write said file
                             If skip = False Then
-                                My.Computer.FileSystem.WriteAllBytes(wavname, newWavFile, False)
-                                'write .sfx file
-                                My.Computer.FileSystem.WriteAllText(sndfilewoext & filelistext, wavname & vbCr, True)
-                                'End If
+                                AddLineToFile(logFile,
+                                              String.Format("File: {0}, From Bank: {1}, Sample Rate: {2}, Size:{3}",
+                                                       wavname, currentBank, sampleRate, newWavFile.Length))
+                                If logOnly = False Then  ' write audio file
+                                    My.Computer.FileSystem.WriteAllBytes(wavname, newWavFile, False)
+                                End If
+                                ' update .sfx/.stm file
+                                Dim entry As String = ""
+                                If filetype = ".lvl" Then
+                                    entry = String.Format("{0}   -resample {1} {2}", wavname, platform, sampleRate)
+                                Else
+                                    entry = String.Format("{0} ", wavname) ' don't add the -resample satuff to a .mlst file
+                                End If
+
+                                entry = entry.Replace(".vag", ".wav") ' don't really want to have to replace the .vag later. just do it here.
+                                If filelistext = ".mlst" Then
+                                    AddLineToFile(sndfilewoext & ".mlst", entry)
+                                ElseIf channel = 2 Then
+                                    AddLineToFile(sndfilewoext & ".stm", entry)
+                                Else
+                                    AddLineToFile(sndfilewoext & ".sfx", entry)
+                                End If
                             End If
 
                             Startindex = i
 
                             If fileCounter - 1 = wavinbankint Then
                                 fileCounter = 0  'reset file counter for bank
+                                currentBank = currentBank + 1
                                 If databankcount > pos Then
                                     pos = pos + 1    'for our saveposition bank array
                                 End If
@@ -710,8 +795,8 @@ Please read the included readme for various file extraction types")
             For i = Startindex To Endindex
                 'currently just grabs the position numbers, want character at that position number
                 Dim ss As String = System.Text.Encoding.GetEncoding(1252).GetString(encoding.GetBytes(i))
-                addlinetoprojectlog = ss & vbCr
-                UpdateProjectLog(addlinetoprojectlog)
+                addlinetoprojectlog = ss
+                AddLineToFile(logFile, addlinetoprojectlog)
             Next
 #End Region
         End If
@@ -719,10 +804,10 @@ Please read the included readme for various file extraction types")
         fs.Close()
         binary_reader.Close()
 #End Region
-        WriteConvertBatchFile(sndfilewoext)
-    End Sub
+        Return WriteConvertBatchFile(sndfilewoext)
+    End Function
 
-    Private Sub WriteConvertBatchFile(ByVal extractDir As String)
+    Private Function WriteConvertBatchFile(ByVal extractDir As String) As String
         Dim dinfo As DirectoryInfo = New DirectoryInfo(extractDir)
         Dim fileInfos As FileInfo() = dinfo.GetFiles("*.wav")
 
@@ -738,22 +823,48 @@ Please read the included readme for various file extraction types")
             builder.Append(":: see more ffmpg commands at: https://ostechnix.com/20-ffmpeg-commands-beginners/" & vbCrLf)
             builder.Append(":: get ffmpeg at: https://github.com/BtbN/FFmpeg-Builds/releases " & vbCrLf)
             builder.Append(":: Create the Convert Folder" & vbCrLf)
-            builder.Append(String.Format("mkdir {0} {1}", outDir, vbCrLf))
-            builder.Append(":: Convert Files " & vbCrLf & vbCrLf)
-
+            builder.Append(String.Format("mkdir ""{0}""{1}", outDir, vbCrLf))
+            builder.Append(":: Convert Files " & vbCrLf)
+            Dim ffmpegPath As String = FindFFmpegPath()
+            If ffmpegPath IsNot Nothing Then
+                builder.Append(":: Found ffmpeg.exe, updating PATH... " & vbCrLf)
+                builder.Append("@SET PATH=%PATH%;" & ffmpegPath.Replace("ffmpeg.exe", "") & vbCrLf)
+            End If
+            builder.Append(vbCrLf)
 
             For i = 0 To fileInfos.Count - 1
                 outName = fileInfos(i).Name.Replace(".vag", ".wav")
-                builder.Append(String.Format("ffmpeg.exe -y -i {0} {1}{2} {3}",
+                builder.Append(String.Format("ffmpeg.exe -y -i ""{0}"" ""{1}{2}"" {3}",
                             fileInfos(i).FullName, outDir, outName, vbCrLf))
             Next
             Dim batchFileName = String.Format("{0}_Convert_PCM.bat", extractDir)
-            batchFileName = batchFileName.Replace("\", "_")
+            'batchFileName = batchFileName.Replace("\", "_")
             File.WriteAllText(batchFileName, builder.ToString())
             Console.WriteLine("You can run the generated file: {1}  {0}{1}to convert your sound files (ffmpeg.exe required)", Path.GetFullPath(batchFileName), vbCrLf)
+            Return batchFileName
         End If
-
-
-    End Sub
+        Return Nothing
+    End Function
+    Private Function FindFFmpegPath() As String
+        Dim files As String() = Directory.GetFiles(".", "ffmpeg.exe", SearchOption.AllDirectories)
+        If files IsNot Nothing And files.Length > 0 Then
+            Return Path.GetFullPath(files(0))
+        End If
+        Return Nothing
+    End Function
+    Private Function RoundSampleRate(ByVal sampleRate As Int32) As Int32
+        Dim retVal As Int32 = sampleRate
+        Dim numbers = New Int32() {320, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 10000, 11000, 11025, 12000, 14000, 16000, 17000, 18000, 20000, 22050, 32000, 44100, 48000} ' in Hz
+        Dim closest As Int32 = 100000
+        Dim test As Int32 = 100000
+        For i = 0 To numbers.Length - 1
+            test = Math.Abs(numbers(i) - sampleRate)
+            If test < closest Then
+                retVal = numbers(i)
+                closest = test
+            End If
+        Next
+        Return retVal
+    End Function
 End Module
 

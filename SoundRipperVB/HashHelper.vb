@@ -83,6 +83,35 @@ Public Class HashHelper
         Console.WriteLine("Done Reading dictionary.")
     End Sub
 
+    ' C# <--> VB converter https://converter.telerik.com/
+    ''' <summary>
+    ''' In the movie files, the name hashes start at 0x3c and occur every 0x20 bytes until
+    ''' zeros are read at that position.
+    ''' </summary>
+    ''' <param name="data">the raw bytes of the movie file</param>
+    ''' <returns> A list of strings for the movie names.</returns>
+    Public Shared Function ReadNames(ByVal data As Byte()) As List(Of String)
+        Dim names As List(Of String) = New List(Of String)()
+        Dim num As UInt32 = 0
+        Dim name As String = ""
+        Dim limit As Integer = If(data.Length < &H100000, data.Length, &H100000)
+
+        For i As Integer = &H3C To limit - 1 Step 32
+            num = BitConverter.ToUInt32(data, i)
+            If num = 0 Then
+                Exit For
+            End If
+            name = HashHelper.GetStringFromHash(num)
+
+            If name IsNot Nothing Then
+                names.Add(name)
+            Else
+                names.Add(String.Format("0x{0:x}", num))
+            End If
+        Next
+
+        Return names
+    End Function
 
     ' Fields
     Private Const DictionaryFile As String = "Dictionary.txt"
