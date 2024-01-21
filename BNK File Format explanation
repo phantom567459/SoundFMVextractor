@@ -1,0 +1,61 @@
+.BNK FILE STRUCTURE (SOUND BANK)
+Common.bnk is the only one that exists as a separate file (PC Only)
+On console, this would be a section of a .lvl file
+
+When I systematically list out the bytes, this is exactly as they are seen in a hex editor.
+If you were using this to program, you'd write in Little Endian format
+Example:  75 63 66 62 = ucfb 
+in little endian = 0x62666375
+
+So if you're searching through file hashes, remember this.
+
+FILE CHUNK BREAKDOWN:
+ucfb - 4 bytes - wrapper which denotes a Battlefront file
+size of file - 4 bytes - signed int which denotes size of entire file
+
+56 22 26 5E - 4 bytes - Hashed representation of "SoundBankList"
+size of chunk - 4 bytes - signed int which denotes size of bank chunk
+15 4D 64 9A - 4 bytes - Hashed representation of "SampleBank"
+size of chunk - 4 bytes - signed int which denotes size of bank chunk
+05 07 B4 0F - 4 bytes - Hashed representation of "Info"
+size of chunk - 4 bytes - signed int which denotes size of INFO chunk (so all the information about the sounds in the bank 
+E6 BD 39 8D - 4 bytes - Hashed representation of "Name"
+hashed file name - 4 bytes - hashed actual name of the file list
+52 85 9D B9 - 4 bytes - Hashed representation of "Format"
+channels - 4 bytes - Format of the files, all files in a bank SHOULD be the same format (1 or 2 chanenel)
+CE 89 B8 98 - 4 bytes - Hashed representation of "NumSamples"
+number of samples - 4 bytes - signed int which denotes number of sound samples in the bank 
+5C D9 A0 23 - 4 bytes - Hashed representation of "Size"
+size of bank - 4 bytes - signed int which denotes combined size of all sounds in bank
+0B AA 4A 69 - 4 bytes - Hashed representation of "Template"
+template bank - 4 bytes - should only be 1 or 0, ???
+43 71 BF 8E - 4 bytes - Hashed representation of "SampleInfo"
+
+FOR EACH FILE IN SOUND BANK:
+A7 82 E3 96 - 4 bytes - Hashed representation of "Sample"
+E0 6A 38 37 - 4 bytes - Hashed representation of "ID"
+hashed name - 4 bytes - Actual hashed name of sound file 
+01 1C B3 2F - 4 bytes - Hashed representation of "Frequency"
+sample rate - 4 bytes - Sample rate of file
+5C D9 A0 23 - 4 bytes - Hashed representation of "Size"
+size of file - 4 bytes - signed int which denotes size of individual sound file
+EF FE 48 1D - 4 bytes - Hashed representation of "SizeSamples"
+sizeSamples - 4 bytes - signed int which denotes the size of the chunk in each channel
+B6 08 96 80 - 4 bytes - Hashed representation of "Padding"
+padding size - 4 bytes - signed int which denotes size of padding on the file 
+
+OPTIONAL: (this chunk may or may not be included)
+57 81 26 7D - 4 bytes - Hashed representation of "Alias"
+alias ID - 4 bytes - Actual hashed name of alias which was defined on munge
+
+REQUIRED: (this will always denote the end of the sample info)
+B4 9F 78 2E - 4 bytes - Hashed representation of "SampleEnd"
+
+Repeat for all files contained in bank.
+
+B6 08 96 80 - 4 bytes - Hash of "Padding" 
+size of padding - 4 bytes - This is to reach a multiple of 2048 
+8 empty bytes - ?
+A5 E2 72 D8 - 4 bytes - Hashed representation of "Data"
+size of data - 4 bytes - size of sound data bank
+Actual sound data here
